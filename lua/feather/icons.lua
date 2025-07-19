@@ -5,21 +5,21 @@ M.file_icons = {
   vim = "",
   py = "",
   js = "",
-  ts = "",
-  jsx = "",
-  tsx = "",
-  json = "",
-  md = "",
-  txt = "",
+  ts = "󰛦",
+  jsx = "󰜈",
+  tsx = "󰜈",
+  json = "󰘦",
+  md = "󰍔",
+  txt = "󰈙",
   rs = "",
-  go = "",
+  go = "󰟓",
   c = "",
   cpp = "",
   h = "",
   hpp = "",
   java = "",
   rb = "",
-  php = "",
+  php = "󰌟",
   html = "",
   css = "",
   scss = "",
@@ -34,12 +34,12 @@ M.file_icons = {
   fish = "",
   git = "",
   gitignore = "",
-  dockerfile = "",
+  dockerfile = "󰡨",
   makefile = "",
 }
 
 M.folder_icon = ""
-M.default_file_icon = ""
+M.default_file_icon = "󰈙"
 
 function M.get_icon(filename, is_dir)
   if is_dir then
