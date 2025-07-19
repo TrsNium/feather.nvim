@@ -19,6 +19,7 @@ M.state = {
 }
 
 function M.setup(opts)
+  opts = opts or {}
   config.setup(opts)
   local cfg = config.get()
   M.state.show_hidden = cfg.features.show_hidden
@@ -33,6 +34,14 @@ function M.setup(opts)
     use_icons = cfg.icons.enabled,
     max_columns = cfg.features.max_columns,
   })
+end
+
+-- Auto-setup with defaults if not already setup
+local function ensure_setup()
+  if not M._setup_done then
+    M.setup({})
+    M._setup_done = true
+  end
 end
 
 local function get_files(dir)
@@ -206,6 +215,7 @@ function M.refresh()
 end
 
 function M.open()
+  ensure_setup()
   local cfg = config.get()
   if cfg.features.split_view then
     split_view.open()
@@ -243,6 +253,7 @@ function M.close()
 end
 
 function M.toggle()
+  ensure_setup()
   local cfg = config.get()
   if cfg.features.split_view then
     split_view.toggle()
