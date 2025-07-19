@@ -158,7 +158,10 @@ local function create_float_window()
   local width = math.floor(vim.o.columns * cfg.window.width)
   local height = math.floor(vim.o.lines * cfg.window.height)
   local row = math.floor((vim.o.lines - height) / 2)
-  local col = math.floor((vim.o.columns - width) / 2)
+  
+  -- Position window to the left to make room for preview
+  local total_space = vim.o.columns - width
+  local col = math.floor(total_space * 0.2)  -- 20% margin on left, 80% for preview space
   
   local buf = api.nvim_create_buf(false, true)
   local win = api.nvim_open_win(buf, true, {
@@ -230,7 +233,7 @@ function M.move_cursor(direction)
     if M.state.preview_enabled then
       local file = M.state.files[new_line]
       if file then
-        preview.update(file.path, M.state.win)
+        preview.show(file.path, M.state.win, "right")
       end
     end
   end
@@ -278,7 +281,7 @@ function M.open()
     if M.state.preview_enabled and #M.state.files > 0 then
       local file = M.state.files[1]
       if file then
-        preview.show(file.path, M.state.win, "auto")
+        preview.show(file.path, M.state.win, "right")
       end
     end
   end
@@ -380,7 +383,7 @@ function M.toggle_preview()
     local line = api.nvim_win_get_cursor(M.state.win)[1]
     local file = M.state.files[line]
     if file then
-      preview.show(file.path, M.state.win, "auto")
+      preview.show(file.path, M.state.win, "right")
     end
   else
     preview.close()

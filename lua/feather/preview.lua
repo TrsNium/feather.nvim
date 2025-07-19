@@ -224,85 +224,69 @@ function M.show(filepath, parent_win, position)
     return
   end
   
-  -- Debug info
-  -- vim.notify("Preview: Showing " .. filepath .. " next to window " .. parent_win, vim.log.levels.INFO)
-  
   -- Create preview buffer
   M.state.buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
   api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
   api.nvim_buf_set_option(M.state.buf, "modifiable", true)
   
-  -- Calculate window position
+  -- Get the main floating window configuration
   local win_config = api.nvim_win_get_config(parent_win)
-  local parent_width = win_config.width or api.nvim_win_get_width(parent_win)
-  local parent_height = win_config.height or api.nvim_win_get_height(parent_win)
+  local container_win = parent_win
   
-  -- Get parent window position
-  local parent_row, parent_col
+  -- If this is a nested window (like split view columns), get the container window
   if win_config.relative == "win" then
-    -- For nested windows (like split view columns), calculate absolute position
-    local parent_parent_win = win_config.win
-    local parent_parent_config = api.nvim_win_get_config(parent_parent_win)
-    parent_row = (parent_parent_config.row or 0) + (win_config.row or 0)
-    parent_col = (parent_parent_config.col or 0) + (win_config.col or 0)
-  else
-    parent_row = win_config.row or 0
-    parent_col = win_config.col or 0
+    container_win = win_config.win
+    win_config = api.nvim_win_get_config(container_win)
   end
   
-  -- Get actual screen dimensions
+  -- Get container window dimensions and position
+  local container_width = win_config.width or api.nvim_win_get_width(container_win)
+  local container_height = win_config.height or api.nvim_win_get_height(container_win)
+  local container_row = win_config.row or 0
+  local container_col = win_config.col or 0
+  
+  -- Get screen dimensions
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
-  -- Calculate available space
-  local space_right = screen_width - (parent_col + parent_width)
-  local space_bottom = screen_height - (parent_row + parent_height)
+  -- Calculate preview dimensions (40% of container width)
+  local preview_width = math.floor(container_width * 0.4)
+  local preview_height = container_height
   
-  local width, height, row, col
-  
-  -- Determine best position based on available space
-  if position == "auto" or not position then
-    -- If parent window is narrow or not enough space on right, use bottom
-    if parent_width < 60 or space_right < 40 then
-      position = "bottom"
-    else
-      position = "right"
-    end
+  -- Ensure minimum preview width
+  if preview_width < 40 then
+    preview_width = 40
   end
   
-  if position == "right" then
-    width = math.min(math.floor(parent_width * 0.5), space_right - 2)
-    height = parent_height - 2
-    row = 1
-    col = parent_width + 1
+  -- Position preview to the right of the container window
+  local preview_col = container_col + container_width + 2
+  local preview_row = container_row
+  
+  -- Check if preview would go off-screen
+  if preview_col + preview_width > screen_width then
+    -- Try to position it to the left of the container
+    preview_col = container_col - preview_width - 2
     
-    -- If preview would be too narrow, switch to bottom
-    if width < 30 then
-      position = "bottom"
+    -- If that's also off-screen, reduce width and position on right
+    if preview_col < 0 then
+      preview_col = container_col + container_width + 2
+      preview_width = screen_width - preview_col - 2
+      
+      -- If still too narrow, don't show preview
+      if preview_width < 30 then
+        return
+      end
     end
   end
   
-  if position == "bottom" then
-    width = parent_width
-    height = math.min(math.floor(parent_height * 0.4), space_bottom - 2, 15)
-    row = parent_height + 1
-    col = 0
-    
-    -- If not enough space at bottom, don't show preview
-    if height < 5 then
-      return
-    end
-  end
-  
-  -- Create preview window
+  -- Create preview window positioned relative to editor
   M.state.win = api.nvim_open_win(M.state.buf, false, {
-    relative = "win",
-    win = parent_win,
-    width = width,
-    height = height,
-    row = row,
-    col = col,
+    relative = "editor",
+    width = preview_width,
+    height = preview_height,
+    row = preview_row,
+    col = preview_col,
     style = "minimal",
     border = "single",
     title = " Preview ",

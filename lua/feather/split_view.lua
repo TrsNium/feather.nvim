@@ -260,9 +260,8 @@ function M.move_in_column(direction)
     if M.state.preview_enabled then
       local file = col.files[new_line]
       if file then
-        -- Use the last column window as parent for preview
-        local last_col = M.state.columns[#M.state.columns]
-        preview.update(file.path, last_col.win)
+        -- Use the container window as parent for preview
+        preview.show(file.path, M.state.container_win, "right")
       end
     end
   end
@@ -359,7 +358,10 @@ function M.open()
   local width = math.floor(vim.o.columns * cfg.window.width)
   local height = math.floor(vim.o.lines * cfg.window.height)
   local row = math.floor((vim.o.lines - height) / 2)
-  local col = math.floor((vim.o.columns - width) / 2)
+  
+  -- Position window to the left to make room for preview
+  local total_space = vim.o.columns - width
+  local col = math.floor(total_space * 0.2)  -- 20% margin on left, 80% for preview space
   
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
@@ -403,7 +405,7 @@ function M.open()
     if M.state.preview_enabled and M.state.columns[1].files and #M.state.columns[1].files > 0 then
       local file = M.state.columns[1].files[1]
       if file then
-        preview.show(file.path, M.state.columns[1].win, "right")
+        preview.show(file.path, M.state.container_win, "right")
       end
     end
   end
@@ -494,9 +496,8 @@ function M.toggle_preview()
     local line = api.nvim_win_get_cursor(col.win)[1]
     local file = col.files[line]
     if file then
-      -- Use the last column window as parent for preview
-      local last_col = M.state.columns[#M.state.columns]
-      preview.show(file.path, last_col.win, "right")
+      -- Use the container window as parent for preview
+      preview.show(file.path, M.state.container_win, "right")
     end
   else
     preview.close()
