@@ -390,7 +390,16 @@ function M.search()
     if input and input ~= "" then
       for i, file in ipairs(M.state.files) do
         if file.name:lower():find(input:lower(), 1, true) then
-          api.nvim_win_set_cursor(M.state.win, {i, 0})
+          -- Ensure we're focused on the correct window
+          if M.state.win and api.nvim_win_is_valid(M.state.win) then
+            api.nvim_set_current_win(M.state.win)
+            api.nvim_win_set_cursor(M.state.win, {i, 0})
+            
+            -- Update preview if enabled
+            if M.state.preview_enabled then
+              preview.show(file.path, M.state.win, "right")
+            end
+          end
           break
         end
       end
