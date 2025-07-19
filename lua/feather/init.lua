@@ -5,6 +5,7 @@ local icons = require("feather.icons")
 local config = require("feather.config")
 local split_view = require("feather.split_view")
 local preview = require("feather.preview")
+local highlights = require("feather.highlights")
 
 M.state = {
   buf = nil,
@@ -22,6 +23,9 @@ function M.setup(opts)
   local cfg = config.get()
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
+  
+  -- Setup highlights
+  highlights.setup()
   
   -- Setup split view
   split_view.setup({
@@ -61,8 +65,12 @@ end
 
 local function render_files(buf, files)
   local lines = {}
-  for _, file in ipairs(files) do
+  local line_highlights = {}
+  
+  for i, file in ipairs(files) do
     local line = ""
+    local hl_group = highlights.get_highlight(file.type, file.name)
+    
     if M.state.use_icons then
       local icon = icons.get_icon(file.name, file.type == "directory")
       line = icon .. " " .. file.name
@@ -76,6 +84,7 @@ local function render_files(buf, files)
     end
     
     table.insert(lines, line)
+    table.insert(line_highlights, {i - 1, hl_group})
   end
   
   local modifiable = api.nvim_buf_get_option(buf, "modifiable")
@@ -84,6 +93,15 @@ local function render_files(buf, files)
   end
   
   api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  
+  -- Apply highlights
+  local ns_id = api.nvim_create_namespace("feather")
+  api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  
+  for _, hl in ipairs(line_highlights) do
+    local line_num, hl_group = hl[1], hl[2]
+    api.nvim_buf_add_highlight(buf, ns_id, hl_group, line_num, 0, -1)
+  end
   
   if not modifiable then
     api.nvim_buf_set_option(buf, "modifiable", false)
