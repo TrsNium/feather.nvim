@@ -42,7 +42,7 @@ M.defaults = {
   },
 }
 
-M.options = M.defaults  -- Initialize with defaults
+M.options = {}  -- Initialize empty
 
 function M.setup(opts)
   M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
@@ -52,7 +52,7 @@ end
 function M.get()
   -- Return defaults if setup hasn't been called
   if vim.tbl_isempty(M.options) then
-    return M.defaults
+    return vim.tbl_deep_extend("force", {}, M.defaults)
   end
   return M.options
 end

@@ -1,0 +1,2 @@
+" Reload feather.nvim plugin
+command! -nargs=0 FeatherReload lua package.loaded['feather'] = nil; package.loaded['feather.config'] = nil; package.loaded['feather.split_view'] = nil; package.loaded['feather.preview'] = nil; package.loaded['feather.icons'] = nil; package.loaded['feather.highlights'] = nil; require('feather').setup(vim.g.feather_config or {})
