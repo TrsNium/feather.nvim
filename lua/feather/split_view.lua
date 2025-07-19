@@ -4,6 +4,7 @@ local fn = vim.fn
 local icons = require("feather.icons")
 local config = require("feather.config")
 local highlights = require("feather.highlights")
+local preview = require("feather.preview")
 
 M.state = {
   container_win = nil,
@@ -13,6 +14,8 @@ M.state = {
   show_hidden = false,
   use_icons = true,
   max_columns = 4,
+  preview_enabled = false,
+  column_separator = true,
 }
 
 local function get_files(dir)
@@ -92,6 +95,16 @@ local function create_column_window(parent_win, col_index, total_cols, container
   local col_width = math.floor(container_width / total_cols)
   local col_start = (col_index - 1) * col_width
   
+  -- Adjust width and position based on column separator setting
+  local width_adjustment = 0
+  local border_style = "none"
+  
+  if M.state.column_separator and col_index < total_cols then
+    -- Add right border for all columns except the last
+    border_style = { "", "", "", "│", "", "", "", "│" }
+    width_adjustment = 1  -- Account for border
+  end
+  
   local buf = api.nvim_create_buf(false, true)
   
   -- Set buffer options before creating window
@@ -102,12 +115,12 @@ local function create_column_window(parent_win, col_index, total_cols, container
   local win = api.nvim_open_win(buf, false, {
     relative = "win",
     win = parent_win,
-    width = col_width - 1,  -- Leave space for separator
-    height = container_height - 2,  -- Leave space for border
+    width = col_width - 1 - width_adjustment,  -- Adjust for separator
+    height = container_height - 2,  -- Leave space for container border
     row = 1,
     col = col_start,
     style = "minimal",
-    border = "none",
+    border = border_style,
     focusable = true,  -- Ensure window is focusable
   })
   
@@ -121,6 +134,7 @@ end
 
 -- Forward declarations
 local setup_column_keymaps
+
 
 local function update_column_highlights()
   for i, col in ipairs(M.state.columns) do
@@ -211,6 +225,10 @@ setup_column_keymaps = function(buf, col_index)
   vim.keymap.set("n", "i", function() M.toggle_icons() end, opts)
   vim.keymap.set("n", "?", function() M.show_help() end, opts)
   vim.keymap.set("n", "-", function() M.go_parent() end, opts)
+  vim.keymap.set("n", "p", function() M.toggle_preview() end, opts)
+  vim.keymap.set("n", "<C-d>", function() M.preview_scroll(10) end, opts)
+  vim.keymap.set("n", "<C-u>", function() M.preview_scroll(-10) end, opts)
+  vim.keymap.set("n", "|", function() M.toggle_column_separator() end, opts)
 end
 
 function M.move_in_column(direction)
@@ -224,6 +242,14 @@ function M.move_in_column(direction)
   if new_line >= 1 and new_line <= line_count then
     api.nvim_win_set_cursor(col.win, {new_line, 0})
     col.cursor = new_line
+    
+    -- Update preview if enabled
+    if M.state.preview_enabled then
+      local file = col.files[new_line]
+      if file then
+        preview.update(file.path, M.state.container_win)
+      end
+    end
   end
 end
 
@@ -323,6 +349,9 @@ function M.open()
 end
 
 function M.close()
+  -- Close preview window
+  preview.close()
+  
   for _, col in ipairs(M.state.columns) do
     if api.nvim_win_is_valid(col.win) then
       api.nvim_win_close(col.win, true)
@@ -336,6 +365,7 @@ function M.close()
   M.state.columns = {}
   M.state.container_win = nil
   M.state.container_buf = nil
+  M.state.preview_enabled = false
 end
 
 function M.toggle()
@@ -378,13 +408,75 @@ function M.show_help()
     "Features:",
     "  .       - Toggle hidden files",
     "  i       - Toggle icons",
+    "  p       - Toggle file preview",
+    "  |       - Toggle column separators",
     "  ?       - Show this help",
+    "",
+    "Preview:",
+    "  <C-d>   - Scroll preview down",
+    "  <C-u>   - Scroll preview up",
     "",
     "Exit:",
     "  q/<Esc> - Close Feather",
   }
   
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, { title = "Feather Help" })
+end
+
+function M.toggle_preview()
+  local col = M.state.columns[M.state.active_col]
+  if not col or not api.nvim_win_is_valid(col.win) then return end
+  
+  M.state.preview_enabled = not M.state.preview_enabled
+  
+  if M.state.preview_enabled then
+    local line = api.nvim_win_get_cursor(col.win)[1]
+    local file = col.files[line]
+    if file then
+      preview.show(file.path, M.state.container_win, "auto")
+    end
+  else
+    preview.close()
+  end
+end
+
+function M.preview_scroll(lines)
+  if M.state.preview_enabled then
+    preview.scroll(lines)
+  end
+end
+
+function M.toggle_column_separator()
+  M.state.column_separator = not M.state.column_separator
+  
+  -- Recreate all column windows with new border settings
+  local container_width = api.nvim_win_get_width(M.state.container_win) - 2
+  local container_height = api.nvim_win_get_height(M.state.container_win)
+  
+  for i, col in ipairs(M.state.columns) do
+    -- Close old window
+    if api.nvim_win_is_valid(col.win) then
+      api.nvim_win_close(col.win, true)
+    end
+    
+    -- Create new window with updated border
+    local buf, win = create_column_window(
+      M.state.container_win,
+      i,
+      #M.state.columns,
+      container_width,
+      container_height
+    )
+    
+    col.buf = buf
+    col.win = win
+    setup_column_keymaps(col.buf, i)
+    render_files(col.buf, col.files, i == M.state.active_col)
+    api.nvim_win_set_cursor(col.win, {col.cursor, 0})
+  end
+  
+  update_column_highlights()
+  api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
 end
 
 function M.go_parent()
@@ -492,6 +584,10 @@ function M.setup(opts)
   end
   M.state.show_hidden = opts.show_hidden or false
   M.state.use_icons = opts.use_icons == nil and true or opts.use_icons
+  
+  -- Get column separator setting from config
+  local cfg = config.get()
+  M.state.column_separator = cfg.features.column_separator
   
   -- Setup highlights if not already done
   local has_highlights = pcall(require, "feather.highlights")

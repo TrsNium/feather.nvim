@@ -17,6 +17,7 @@ M.defaults = {
     auto_close = true,
     split_view = false,  -- Use split view mode
     max_columns = 4,     -- Maximum columns in split view
+    column_separator = true,  -- Show vertical separator between columns
   },
   preview = {
     enabled = false,      -- Enable preview by default
