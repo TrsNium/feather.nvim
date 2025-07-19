@@ -192,6 +192,8 @@ local function setup_keymaps(buf)
   vim.keymap.set("n", "i", function() M.toggle_icons() end, opts)
   vim.keymap.set("n", "~", function() M.go_home() end, opts)
   vim.keymap.set("n", "/", function() M.search() end, opts)
+  vim.keymap.set("n", "n", function() M.go_to_search_result(1) end, opts)
+  vim.keymap.set("n", "N", function() M.go_to_search_result(-1) end, opts)
   vim.keymap.set("n", "?", function() M.show_help() end, opts)
   vim.keymap.set("n", "p", function() M.toggle_preview() end, opts)
   vim.keymap.set("n", "<C-d>", function() M.preview_scroll(10) end, opts)
@@ -385,26 +387,71 @@ function M.go_home()
   M.refresh()
 end
 
+-- Search state
+M.search_state = {
+  pattern = "",
+  matches = {},
+  current_match = 1,
+}
+
 function M.search()
   vim.ui.input({ prompt = "Search: " }, function(input)
     if input and input ~= "" then
+      M.search_state.pattern = input:lower()
+      M.search_state.matches = {}
+      M.search_state.current_match = 1
+      
+      -- Find all matches
       for i, file in ipairs(M.state.files) do
-        if file.name:lower():find(input:lower(), 1, true) then
-          -- Ensure we're focused on the correct window
-          if M.state.win and api.nvim_win_is_valid(M.state.win) then
-            api.nvim_set_current_win(M.state.win)
-            api.nvim_win_set_cursor(M.state.win, {i, 0})
-            
-            -- Update preview if enabled
-            if M.state.preview_enabled then
-              preview.show(file.path, M.state.win, "right")
-            end
-          end
-          break
+        if file.name:lower():find(M.search_state.pattern, 1, true) then
+          table.insert(M.search_state.matches, i)
         end
+      end
+      
+      -- Go to first match
+      if #M.search_state.matches > 0 then
+        M.search_state.current_match = 0
+        M.go_to_search_result(1)
+      else
+        vim.notify("No matches found for: " .. input, vim.log.levels.WARN)
       end
     end
   end)
+end
+
+function M.go_to_search_result(direction)
+  if #M.search_state.matches == 0 then return end
+  
+  M.search_state.current_match = M.search_state.current_match + direction
+  
+  -- Wrap around
+  if M.search_state.current_match > #M.search_state.matches then
+    M.search_state.current_match = 1
+  elseif M.search_state.current_match < 1 then
+    M.search_state.current_match = #M.search_state.matches
+  end
+  
+  local line_num = M.search_state.matches[M.search_state.current_match]
+  
+  -- Ensure we're focused on the correct window and move cursor
+  if M.state.win and api.nvim_win_is_valid(M.state.win) then
+    api.nvim_set_current_win(M.state.win)
+    api.nvim_win_set_cursor(M.state.win, {line_num, 0})
+    
+    -- Update preview if enabled
+    if M.state.preview_enabled then
+      local file = M.state.files[line_num]
+      if file then
+        preview.show(file.path, M.state.win, "right")
+      end
+    end
+    
+    -- Show match info
+    vim.notify(string.format("Match %d/%d: %s", 
+      M.search_state.current_match, 
+      #M.search_state.matches,
+      M.state.files[line_num].name), vim.log.levels.INFO)
+  end
 end
 
 function M.show_help()
@@ -419,9 +466,11 @@ function M.show_help()
     "",
     "Features:",
     "  .       - Toggle hidden files",
-    "  i       - Toggle icons",
+    "  i       - Toggle icons", 
     "  p       - Toggle file preview",
     "  /       - Search files",
+    "  n       - Next search result",
+    "  N       - Previous search result",
     "  ?       - Show this help",
     "",
     "Preview:",
