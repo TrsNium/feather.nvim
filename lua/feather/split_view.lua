@@ -79,6 +79,11 @@ local function create_column_window(parent_win, col_index, total_cols, container
   
   local buf = api.nvim_create_buf(false, true)
   
+  -- Set buffer options before creating window
+  api.nvim_buf_set_option(buf, "buftype", "nofile")
+  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  api.nvim_buf_set_option(buf, "modifiable", false)
+  
   local win = api.nvim_open_win(buf, false, {
     relative = "win",
     win = parent_win,
@@ -88,13 +93,13 @@ local function create_column_window(parent_win, col_index, total_cols, container
     col = col_start,
     style = "minimal",
     border = "none",
+    focusable = true,  -- Ensure window is focusable
   })
   
-  api.nvim_buf_set_option(buf, "buftype", "nofile")
-  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  api.nvim_buf_set_option(buf, "modifiable", false)
+  -- Set window options
   api.nvim_win_set_option(win, "cursorline", true)
   api.nvim_win_set_option(win, "wrap", false)
+  api.nvim_win_set_option(win, "winhighlight", "Normal:Normal")
   
   return buf, win
 end
@@ -160,9 +165,11 @@ local function add_column(dir)
       )
       col.buf = new_buf
       col.win = new_win
+      setup_column_keymaps(col.buf, i)  -- Add keymaps
       render_files(col.buf, col.files, i == M.state.active_col)
       api.nvim_win_set_cursor(col.win, {col.cursor, 0})
     else
+      setup_column_keymaps(col.buf, i)  -- Add keymaps for new column
       render_files(col.buf, col.files, true)
     end
   end
@@ -261,7 +268,10 @@ function M.open()
   local col = math.floor((vim.o.columns - width) / 2)
   
   M.state.container_buf = api.nvim_create_buf(false, true)
-  M.state.container_win = api.nvim_open_win(M.state.container_buf, true, {
+  api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
+  api.nvim_buf_set_option(M.state.container_buf, "modifiable", false)
+  
+  M.state.container_win = api.nvim_open_win(M.state.container_buf, false, {  -- false to not enter
     relative = "editor",
     width = width,
     height = height,
@@ -286,7 +296,12 @@ function M.open()
   
   -- Focus on the first column
   update_column_highlights()
-  api.nvim_set_current_win(M.state.columns[1].win)
+  if M.state.columns[1] and api.nvim_win_is_valid(M.state.columns[1].win) then
+    api.nvim_set_current_win(M.state.columns[1].win)
+    -- Set buffer as modifiable to allow cursor movement
+    vim.cmd('setlocal modifiable')
+    vim.cmd('setlocal nomodifiable')
+  end
 end
 
 function M.close()
