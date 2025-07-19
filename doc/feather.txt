@@ -1,4 +1,4 @@
-*feather.txt*  A lightweight file explorer for Neovim with floating window
+*feather.txt*  A modern file explorer for Neovim with dual-pane layout
 
 Author: TrsNium
 License: MIT
@@ -18,19 +18,22 @@ CONTENTS                                                     *feather-contents*
 ==============================================================================
 1. INTRODUCTION                                          *feather-introduction*
 
-Feather.nvim is a lightweight file explorer plugin for Neovim that operates
-in a floating window. It is inspired by rnvimr and NERDTree, providing a
-modern and fast file browsing experience.
+Feather.nvim is a modern file explorer plugin for Neovim with dual-pane 
+layout and real-time file preview. It is inspired by rnvimr and NERDTree, 
+providing an intuitive and fast file browsing experience.
 
 Features:
-- Browse files and directories in a floating window
-- Icon support for different file types (requires Nerd Font)
-- Quick file search functionality
+- Dual-pane layout with file tree and preview side-by-side
+- Real-time file preview with automatic cursor synchronization
+- Advanced search with navigation (/, n, N)
+- Multi-column directory browsing (Miller columns)
+- Rich icon support for file types (requires Nerd Font)
+- Customizable borders (rounded, single, double, etc.)
 - Toggle hidden files visibility
-- Customizable key mappings and appearance
+- Current directory navigation
 - Lightweight and fast performance
-- File preview without opening
-- Split view mode for directory hierarchy
+- Vim-like key mappings
+- Extensive customization options
 
 ==============================================================================
 2. INSTALLATION                                          *feather-installation*
@@ -90,6 +93,10 @@ Basic workflow:
 :FeatherClose                                                  *:FeatherClose*
     Close the file explorer window. Does nothing if already closed.
 
+:FeatherCurrent                                              *:FeatherCurrent*
+    Open the file explorer in the current file's directory. If no file
+    is open, uses the current working directory.
+
 ==============================================================================
 5. KEY MAPPINGS                                               *feather-mappings*
 
@@ -98,15 +105,19 @@ Default key mappings in the Feather window:
 Navigation:
     j         Move cursor down
     k         Move cursor up
-    h         Go to parent directory
-    l, <CR>   Open file or enter directory
+    h         Go to parent directory (or focus left column in split view)
+    l, <CR>   Open file or enter directory (or focus right column)
     ~         Go to home directory
+    -         Go to parent directory (split view only)
 
 Features:
     .         Toggle hidden files visibility
     i         Toggle icon display
     p         Toggle file preview
     /         Search for files (case-insensitive)
+    n         Next search result
+    N         Previous search result
+    |         Toggle column separators (split view only)
     ?         Show help
 
 Preview:
@@ -116,6 +127,12 @@ Preview:
 Window:
     q, <Esc>  Close the file explorer
 
+Split View Mode:
+In split view mode, additional navigation commands are available:
+    h         Focus previous column (or go to parent if at first column)
+    l, <CR>   Focus next column or open file
+    -         Go to parent directory
+
 ==============================================================================
 6. CONFIGURATION                                        *feather-configuration*
 
@@ -124,19 +141,30 @@ Feather can be configured by passing options to the setup function:
 >lua
     require("feather").setup({
       window = {
-        width = 0.8,      -- Window width (0-1 for percentage)
-        height = 0.8,     -- Window height (0-1 for percentage)
-        border = "rounded", -- Border style
+        width = 0.42,        -- Window width (0-1 for percentage)
+        height = 0.8,        -- Window height (0-1 for percentage)
+        border = "rounded",  -- Border style
         position = "center", -- Window position
       },
       icons = {
-        enabled = true,   -- Enable file icons
-        folder = "",     -- Folder icon
-        default_file = "", -- Default file icon
+        enabled = true,      -- Enable file icons
+        folder = "",        -- Folder icon
+        default_file = "",  -- Default file icon
       },
       features = {
-        show_hidden = false, -- Show hidden files by default
-        auto_close = true,   -- Auto close on file open
+        show_hidden = false,     -- Show hidden files by default
+        auto_close = true,       -- Auto close on file open
+        split_view = true,       -- Enable split view mode
+        max_columns = 4,         -- Maximum columns in split view
+        column_separator = false, -- Show column separators
+      },
+      preview = {
+        enabled = true,          -- Enable preview by default
+        position = "auto",       -- Preview position
+        border = "single",       -- Preview border style
+        max_lines = 100,         -- Maximum lines in preview
+        min_width = 30,          -- Minimum preview width
+        min_height = 5,          -- Minimum preview height
       },
       keymaps = {
         quit = { "q", "<Esc>" },
@@ -146,6 +174,9 @@ Feather can be configured by passing options to the setup function:
         up = { "k" },
         toggle_hidden = { "." },
         toggle_icons = { "i" },
+        toggle_preview = { "p" },
+        preview_scroll_down = { "<C-d>" },
+        preview_scroll_up = { "<C-u>" },
         home = { "~" },
         search = { "/" },
         help = { "?" },
@@ -201,6 +232,18 @@ require("feather").refresh()                                *feather.refresh()*
 
 ==============================================================================
 8. CHANGELOG                                                *feather-changelog*
+
+v2.0.0 (2025-07-19)
+    - Major redesign with dual-pane layout
+    - Real-time file preview with automatic synchronization
+    - Advanced search with navigation (/, n, N)
+    - Multi-column directory browsing (Miller columns)
+    - Customizable borders for both main window and preview
+    - Current directory navigation (:FeatherCurrent)
+    - Improved window positioning and margin management
+    - Enhanced split view mode with better column management
+    - Fixed cursor synchronization issues
+    - Performance optimizations
 
 v1.0.0 (2025-01-19)
     - Initial release
