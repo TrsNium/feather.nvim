@@ -7,15 +7,30 @@ local highlights = require("feather.highlights")
 local preview = require("feather.preview")
 
 M.state = {
+  -- Main container
   container_win = nil,
   container_buf = nil,
-  columns = {},  -- Array of { win, buf, dir, files, cursor }
-  active_col = 1,
+  
+  -- Left pane (file explorer)
+  explorer_win = nil,
+  explorer_buf = nil,
+  
+  -- Right pane (preview)
+  preview_win = nil,
+  preview_buf = nil,
+  
+  -- Separator window
+  separator_win = nil,
+  
+  -- Explorer state
+  current_dir = nil,
+  files = {},
+  cursor = 1,
+  
+  -- Settings
   show_hidden = false,
   use_icons = true,
-  max_columns = 4,
-  preview_enabled = false,
-  column_separator = true,
+  preview_enabled = true,
 }
 
 local function get_files(dir)
@@ -36,6 +51,7 @@ local function get_files(dir)
     end
   end
   
+  -- Sort: directories first, then files
   table.sort(files, function(a, b)
     if a.type == b.type then
       return a.name < b.name
@@ -46,17 +62,27 @@ local function get_files(dir)
   return files
 end
 
-local function render_files(buf, files, is_active)
+local function render_files(buf, files)
   local lines = {}
   local line_highlights = {}
+  local icon_highlights = {}
   
   for i, file in ipairs(files) do
     local line = ""
     local hl_group = highlights.get_highlight(file.type, file.name)
     
     if M.state.use_icons then
-      local icon = icons.get_icon(file.name, file.type == "directory")
+      local icon, icon_hl = icons.get_icon(file.name, file.type == "directory")
       line = icon .. " " .. file.name
+      -- Store icon highlight info
+      if icon_hl then
+        table.insert(icon_highlights, {
+          line = i - 1,
+          col_start = 0,
+          col_end = vim.fn.strwidth(icon),
+          hl_group = icon_hl
+        })
+      end
     else
       local prefix = file.type == "directory" and "▸ " or "  "
       line = prefix .. file.name
@@ -81,9 +107,22 @@ local function render_files(buf, files, is_active)
   local ns_id = api.nvim_create_namespace("feather_split")
   api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
   
+  -- Apply line highlights
   for _, hl in ipairs(line_highlights) do
     local line_num, hl_group = hl[1], hl[2]
     api.nvim_buf_add_highlight(buf, ns_id, hl_group, line_num, 0, -1)
+  end
+  
+  -- Apply icon highlights (these take precedence)
+  for _, icon_hl in ipairs(icon_highlights) do
+    api.nvim_buf_add_highlight(
+      buf,
+      ns_id,
+      icon_hl.hl_group,
+      icon_hl.line,
+      icon_hl.col_start,
+      icon_hl.col_end
+    )
   end
   
   if not modifiable then
@@ -91,248 +130,219 @@ local function render_files(buf, files, is_active)
   end
 end
 
-local function create_column_window(parent_win, col_index, total_cols, container_width, container_height)
-  local col_width = math.floor(container_width / total_cols)
-  local col_start = (col_index - 1) * col_width
-  
-  -- Adjust width and position based on column separator setting
-  local width_adjustment = 0
-  local border_style = "none"
-  
-  if M.state.column_separator and col_index < total_cols then
-    -- Add right border for all columns except the last
-    border_style = { "", "", "", "│", "", "", "", "│" }
-    width_adjustment = 1  -- Account for border
+local function update_preview()
+  if not M.state.preview_enabled or not M.state.preview_win then
+    return
   end
   
-  local buf = api.nvim_create_buf(false, true)
+  local file = M.state.files[M.state.cursor]
+  if not file then
+    return
+  end
   
-  -- Set buffer options before creating window
-  api.nvim_buf_set_option(buf, "buftype", "nofile")
-  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  api.nvim_buf_set_option(buf, "modifiable", false)
-  
-  local win = api.nvim_open_win(buf, false, {
-    relative = "win",
-    win = parent_win,
-    width = col_width - 1 - width_adjustment,  -- Adjust for separator
-    height = container_height - 2,  -- Leave space for container border
-    row = 1,
-    col = col_start,
-    style = "minimal",
-    border = border_style,
-    focusable = true,  -- Ensure window is focusable
-  })
-  
-  -- Set window options
-  api.nvim_win_set_option(win, "cursorline", true)
-  api.nvim_win_set_option(win, "wrap", false)
-  api.nvim_win_set_option(win, "winhighlight", "Normal:Normal")
-  
-  return buf, win
-end
-
--- Forward declarations
-local setup_column_keymaps
-
-
-local function update_column_highlights()
-  for i, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win) then
-      if i == M.state.active_col then
-        api.nvim_win_set_option(col.win, "winhl", "Normal:Normal,CursorLine:Visual")
-      else
-        api.nvim_win_set_option(col.win, "winhl", "Normal:Comment,CursorLine:CursorLine")
-      end
-    end
+  -- Use the preview module to render content
+  if M.state.preview_buf and api.nvim_buf_is_valid(M.state.preview_buf) then
+    preview.render_preview(M.state.preview_buf, file.path)
   end
 end
 
-local function add_column(dir)
-  if #M.state.columns >= M.state.max_columns then
-    -- Remove first column
-    local first_col = table.remove(M.state.columns, 1)
-    if api.nvim_win_is_valid(first_col.win) then
-      api.nvim_win_close(first_col.win, true)
-    end
-  end
-  
-  local container_width = api.nvim_win_get_width(M.state.container_win)
-  local container_height = api.nvim_win_get_height(M.state.container_win)
-  
-  -- Recalculate all column positions
-  for i, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win) then
-      api.nvim_win_close(col.win, true)
-    end
-  end
-  
-  -- Create new column
-  local files = get_files(dir)
-  local buf, win = create_column_window(
-    M.state.container_win,
-    #M.state.columns + 1,
-    #M.state.columns + 1,
-    container_width,
-    container_height
-  )
-  
-  table.insert(M.state.columns, {
-    win = win,
-    buf = buf,
-    dir = dir,
-    files = files,
-    cursor = 1,
-  })
-  
-  -- Recreate existing columns with new positions
-  for i, col in ipairs(M.state.columns) do
-    if i < #M.state.columns then
-      local new_buf, new_win = create_column_window(
-        M.state.container_win,
-        i,
-        #M.state.columns,
-        container_width,
-        container_height
-      )
-      col.buf = new_buf
-      col.win = new_win
-      setup_column_keymaps(col.buf, i)  -- Add keymaps
-      render_files(col.buf, col.files, i == M.state.active_col)
-      api.nvim_win_set_cursor(col.win, {col.cursor, 0})
-    else
-      setup_column_keymaps(col.buf, i)  -- Add keymaps for new column
-      render_files(col.buf, col.files, true)
-    end
-  end
-  
-  M.state.active_col = #M.state.columns
-  update_column_highlights()
-  api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
-end
-
-setup_column_keymaps = function(buf, col_index)
+local function setup_keymaps(buf)
   local opts = { noremap = true, silent = true, buffer = buf }
   
-  vim.keymap.set("n", "j", function() M.move_in_column(1) end, opts)
-  vim.keymap.set("n", "k", function() M.move_in_column(-1) end, opts)
-  vim.keymap.set("n", "h", function() M.focus_column(-1) end, opts)
-  vim.keymap.set("n", "l", function() M.open_or_focus_right() end, opts)
-  vim.keymap.set("n", "<CR>", function() M.open_or_focus_right() end, opts)
+  vim.keymap.set("n", "j", function() M.move_cursor(1) end, opts)
+  vim.keymap.set("n", "k", function() M.move_cursor(-1) end, opts)
+  vim.keymap.set("n", "l", function() M.open_selection() end, opts)
+  vim.keymap.set("n", "<CR>", function() M.open_selection() end, opts)
+  vim.keymap.set("n", "h", function() M.go_parent() end, opts)
+  vim.keymap.set("n", "-", function() M.go_parent() end, opts)
   vim.keymap.set("n", "q", function() M.close() end, opts)
   vim.keymap.set("n", "<Esc>", function() M.close() end, opts)
   vim.keymap.set("n", ".", function() M.toggle_hidden() end, opts)
   vim.keymap.set("n", "i", function() M.toggle_icons() end, opts)
   vim.keymap.set("n", "?", function() M.show_help() end, opts)
-  vim.keymap.set("n", "-", function() M.go_parent() end, opts)
   vim.keymap.set("n", "p", function() M.toggle_preview() end, opts)
   vim.keymap.set("n", "<C-d>", function() M.preview_scroll(10) end, opts)
   vim.keymap.set("n", "<C-u>", function() M.preview_scroll(-10) end, opts)
-  vim.keymap.set("n", "|", function() M.toggle_column_separator() end, opts)
+  vim.keymap.set("n", "~", function() M.go_home() end, opts)
+  vim.keymap.set("n", "/", function() M.search() end, opts)
 end
 
-function M.move_in_column(direction)
-  local col = M.state.columns[M.state.active_col]
-  if not col or not api.nvim_win_is_valid(col.win) then return end
+function M.move_cursor(direction)
+  local new_pos = M.state.cursor + direction
+  local max_pos = #M.state.files
   
-  local current_line = api.nvim_win_get_cursor(col.win)[1]
-  local new_line = current_line + direction
-  local line_count = api.nvim_buf_line_count(col.buf)
-  
-  if new_line >= 1 and new_line <= line_count then
-    api.nvim_win_set_cursor(col.win, {new_line, 0})
-    col.cursor = new_line
-    
-    -- Update preview if enabled
-    if M.state.preview_enabled then
-      local file = col.files[new_line]
-      if file then
-        -- Update preview content
-        M.show_preview_split(file.path)
-      end
+  if new_pos >= 1 and new_pos <= max_pos then
+    M.state.cursor = new_pos
+    if M.state.explorer_win and api.nvim_win_is_valid(M.state.explorer_win) then
+      api.nvim_win_set_cursor(M.state.explorer_win, {new_pos, 0})
     end
+    update_preview()
   end
 end
 
-function M.focus_column(direction)
-  local new_col = M.state.active_col + direction
-  
-  -- If trying to go left from the first column, go to parent directory
-  if new_col < 1 and M.state.active_col == 1 then
-    M.go_parent()
-    return
-  end
-  
-  if new_col >= 1 and new_col <= #M.state.columns then
-    -- If moving left, remove columns to the right
-    if direction < 0 then
-      for i = #M.state.columns, new_col + 1, -1 do
-        local c = M.state.columns[i]
-        if api.nvim_win_is_valid(c.win) then
-          api.nvim_win_close(c.win, true)
-        end
-        table.remove(M.state.columns, i)
-      end
-      
-      -- Recreate all windows with new size
-      local container_width = api.nvim_win_get_width(M.state.container_win) - 2
-      local container_height = api.nvim_win_get_height(M.state.container_win)
-      
-      for i, col in ipairs(M.state.columns) do
-        if api.nvim_win_is_valid(col.win) then
-          api.nvim_win_close(col.win, true)
-        end
-        
-        local buf, win = create_column_window(
-          M.state.container_win,
-          i,
-          #M.state.columns,
-          container_width,
-          container_height
-        )
-        
-        col.buf = buf
-        col.win = win
-        setup_column_keymaps(col.buf, i)
-        render_files(col.buf, col.files, i == new_col)
-        api.nvim_win_set_cursor(col.win, {col.cursor, 0})
-      end
-    end
-    
-    M.state.active_col = new_col
-    update_column_highlights()
-    api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
-  end
-end
-
-function M.open_or_focus_right()
-  local col = M.state.columns[M.state.active_col]
-  if not col then return end
-  
-  local line = col.cursor
-  local file = col.files[line]
+function M.open_selection()
+  local file = M.state.files[M.state.cursor]
   if not file then return end
   
   if file.type == "directory" then
-    -- Check if next column already shows this directory
-    if M.state.columns[M.state.active_col + 1] and 
-       M.state.columns[M.state.active_col + 1].dir == file.path then
-      M.focus_column(1)
-    else
-      -- Remove columns to the right
-      for i = #M.state.columns, M.state.active_col + 1, -1 do
-        local c = M.state.columns[i]
-        if api.nvim_win_is_valid(c.win) then
-          api.nvim_win_close(c.win, true)
-        end
-        table.remove(M.state.columns, i)
-      end
-      
-      add_column(file.path)
-    end
+    M.state.current_dir = file.path
+    M.refresh()
   else
     M.close()
     vim.cmd("edit " .. fn.fnameescape(file.path))
+  end
+end
+
+function M.go_parent()
+  local parent = fn.fnamemodify(M.state.current_dir, ":h")
+  if parent ~= M.state.current_dir then
+    M.state.current_dir = parent
+    M.refresh()
+  end
+end
+
+function M.go_home()
+  M.state.current_dir = vim.fn.expand("~")
+  M.refresh()
+end
+
+function M.refresh()
+  if not M.state.explorer_buf or not api.nvim_buf_is_valid(M.state.explorer_buf) then
+    return
+  end
+  
+  M.state.files = get_files(M.state.current_dir)
+  M.state.cursor = 1
+  render_files(M.state.explorer_buf, M.state.files)
+  
+  -- Update window title
+  local title = " Feather - " .. fn.fnamemodify(M.state.current_dir, ":~") .. " "
+  if M.state.container_win and api.nvim_win_is_valid(M.state.container_win) then
+    api.nvim_win_set_config(M.state.container_win, { title = title })
+  end
+  
+  -- Set cursor to first line
+  if M.state.explorer_win and api.nvim_win_is_valid(M.state.explorer_win) then
+    api.nvim_win_set_cursor(M.state.explorer_win, {1, 0})
+  end
+  
+  update_preview()
+end
+
+function M.update_layout()
+  if not M.state.container_win or not api.nvim_win_is_valid(M.state.container_win) then
+    return
+  end
+  
+  local cfg = config.get()
+  local width = math.floor(vim.o.columns * cfg.window.width)
+  local height = math.floor(vim.o.lines * cfg.window.height)
+  
+  if M.state.preview_enabled then
+    -- 2-pane layout
+    local explorer_width = math.floor(width * 0.5)
+    local preview_width = width - explorer_width - 1
+    
+    -- Update explorer window
+    if M.state.explorer_win and api.nvim_win_is_valid(M.state.explorer_win) then
+      api.nvim_win_set_config(M.state.explorer_win, {
+        width = explorer_width,
+        height = height - 2,
+      })
+    end
+    
+    -- Show/create separator
+    if M.state.separator_win and api.nvim_win_is_valid(M.state.separator_win) then
+      api.nvim_win_set_config(M.state.separator_win, {
+        col = explorer_width,
+        height = height - 2,
+      })
+    else
+      -- Create separator
+      local sep_buf = api.nvim_create_buf(false, true)
+      api.nvim_buf_set_option(sep_buf, "buftype", "nofile")
+      api.nvim_buf_set_option(sep_buf, "modifiable", false)
+      
+      M.state.separator_win = api.nvim_open_win(sep_buf, false, {
+        relative = "win",
+        win = M.state.container_win,
+        width = 1,
+        height = height - 2,
+        row = 1,
+        col = explorer_width,
+        style = "minimal",
+        border = "none",
+        focusable = false,
+      })
+      
+      -- Fill separator with vertical lines
+      local sep_lines = {}
+      for _ = 1, height - 2 do
+        table.insert(sep_lines, "│")
+      end
+      api.nvim_buf_set_option(sep_buf, "modifiable", true)
+      api.nvim_buf_set_lines(sep_buf, 0, -1, false, sep_lines)
+      api.nvim_buf_set_option(sep_buf, "modifiable", false)
+      api.nvim_win_set_option(M.state.separator_win, "winhighlight", "Normal:Comment")
+    end
+    
+    -- Show/create preview window
+    if M.state.preview_win and api.nvim_win_is_valid(M.state.preview_win) then
+      api.nvim_win_set_config(M.state.preview_win, {
+        width = preview_width - 1,
+        height = height - 2,
+        col = explorer_width + 1,
+      })
+    else
+      -- Create preview pane
+      M.state.preview_buf = api.nvim_create_buf(false, true)
+      api.nvim_buf_set_option(M.state.preview_buf, "buftype", "nofile")
+      api.nvim_buf_set_option(M.state.preview_buf, "bufhidden", "wipe")
+      
+      M.state.preview_win = api.nvim_open_win(M.state.preview_buf, false, {
+        relative = "win",
+        win = M.state.container_win,
+        width = preview_width - 1,
+        height = height - 2,
+        row = 1,
+        col = explorer_width + 1,
+        style = "minimal",
+        border = "none",
+        focusable = false,
+      })
+      
+      api.nvim_win_set_option(M.state.preview_win, "number", true)
+      api.nvim_win_set_option(M.state.preview_win, "wrap", true)
+      api.nvim_win_set_option(M.state.preview_win, "cursorline", false)
+      
+      -- Store preview state for preview module
+      preview.state.win = M.state.preview_win
+      preview.state.buf = M.state.preview_buf
+    end
+    
+    update_preview()
+  else
+    -- 1-pane layout
+    if M.state.explorer_win and api.nvim_win_is_valid(M.state.explorer_win) then
+      api.nvim_win_set_config(M.state.explorer_win, {
+        width = width - 2,
+        height = height - 2,
+      })
+    end
+    
+    -- Hide separator
+    if M.state.separator_win and api.nvim_win_is_valid(M.state.separator_win) then
+      api.nvim_win_close(M.state.separator_win, true)
+      M.state.separator_win = nil
+    end
+    
+    -- Hide preview
+    if M.state.preview_win and api.nvim_win_is_valid(M.state.preview_win) then
+      api.nvim_win_close(M.state.preview_win, true)
+      M.state.preview_win = nil
+      preview.state.win = nil
+      preview.state.buf = nil
+    end
   end
 end
 
@@ -347,11 +357,11 @@ function M.open()
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
   
+  -- Create container
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
-  api.nvim_buf_set_option(M.state.container_buf, "modifiable", false)
   
-  M.state.container_win = api.nvim_open_win(M.state.container_buf, false, {  -- false to not enter
+  M.state.container_win = api.nvim_open_win(M.state.container_buf, false, {
     relative = "editor",
     width = width,
     height = height,
@@ -363,48 +373,72 @@ function M.open()
     title_pos = "center",
   })
   
-  -- Set window highlight to match normal background
+  -- Set window highlight
   api.nvim_win_set_option(M.state.container_win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
   
-  M.state.columns = {}
-  M.state.active_col = 1
+  -- Create explorer pane
+  M.state.explorer_buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(M.state.explorer_buf, "buftype", "nofile")
+  api.nvim_buf_set_option(M.state.explorer_buf, "bufhidden", "wipe")
   
-  -- Add initial column with current directory
-  add_column(fn.getcwd())
+  local explorer_width = M.state.preview_enabled and math.floor(width * 0.5) or width - 2
+  M.state.explorer_win = api.nvim_open_win(M.state.explorer_buf, true, {
+    relative = "win",
+    win = M.state.container_win,
+    width = explorer_width,
+    height = height - 2,
+    row = 1,
+    col = 0,
+    style = "minimal",
+    border = "none",
+  })
   
-  -- Setup keymaps for all columns
-  for i, col in ipairs(M.state.columns) do
-    setup_column_keymaps(col.buf, i)
+  api.nvim_win_set_option(M.state.explorer_win, "cursorline", true)
+  api.nvim_win_set_option(M.state.explorer_win, "wrap", false)
+  
+  -- Setup keymaps
+  setup_keymaps(M.state.explorer_buf)
+  
+  -- Initialize
+  M.state.current_dir = fn.getcwd()
+  M.refresh()
+  
+  -- Create preview if enabled
+  if M.state.preview_enabled then
+    M.update_layout()
   end
   
-  -- Focus on the first column
-  update_column_highlights()
-  if M.state.columns[1] and api.nvim_win_is_valid(M.state.columns[1].win) then
-    api.nvim_set_current_win(M.state.columns[1].win)
-    -- Set buffer as modifiable to allow cursor movement
-    vim.cmd('setlocal modifiable')
-    vim.cmd('setlocal nomodifiable')
-  end
+  -- Focus on explorer
+  api.nvim_set_current_win(M.state.explorer_win)
 end
 
 function M.close()
-  -- Close preview window
-  preview.close()
+  -- Close preview state
+  preview.state.win = nil
+  preview.state.buf = nil
   
-  for _, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win) then
-      api.nvim_win_close(col.win, true)
+  -- Close all windows
+  local windows = {
+    M.state.explorer_win,
+    M.state.preview_win,
+    M.state.separator_win,
+    M.state.container_win
+  }
+  
+  for _, win in ipairs(windows) do
+    if win and api.nvim_win_is_valid(win) then
+      api.nvim_win_close(win, true)
     end
   end
   
-  if M.state.container_win and api.nvim_win_is_valid(M.state.container_win) then
-    api.nvim_win_close(M.state.container_win, true)
-  end
-  
-  M.state.columns = {}
+  -- Reset state
   M.state.container_win = nil
   M.state.container_buf = nil
-  M.state.preview_enabled = false
+  M.state.explorer_win = nil
+  M.state.explorer_buf = nil
+  M.state.preview_win = nil
+  M.state.preview_buf = nil
+  M.state.separator_win = nil
 end
 
 function M.toggle()
@@ -417,38 +451,65 @@ end
 
 function M.toggle_hidden()
   M.state.show_hidden = not M.state.show_hidden
-  
-  -- Refresh all columns
-  for _, col in ipairs(M.state.columns) do
-    col.files = get_files(col.dir)
-    render_files(col.buf, col.files, _ == M.state.active_col)
-  end
+  M.refresh()
 end
 
 function M.toggle_icons()
   M.state.use_icons = not M.state.use_icons
+  M.refresh()
+end
+
+function M.toggle_preview()
+  M.state.preview_enabled = not M.state.preview_enabled
+  M.update_layout()
   
-  -- Re-render all columns
-  for i, col in ipairs(M.state.columns) do
-    render_files(col.buf, col.files, i == M.state.active_col)
+  if not M.state.preview_enabled then
+    vim.notify("Preview disabled", vim.log.levels.INFO)
+  else
+    vim.notify("Preview enabled", vim.log.levels.INFO)
   end
+end
+
+function M.preview_scroll(lines)
+  if M.state.preview_enabled and M.state.preview_win and api.nvim_win_is_valid(M.state.preview_win) then
+    local current_line = api.nvim_win_get_cursor(M.state.preview_win)[1]
+    local new_line = math.max(1, current_line + lines)
+    pcall(api.nvim_win_set_cursor, M.state.preview_win, {new_line, 0})
+  end
+end
+
+function M.search()
+  vim.ui.input({ prompt = "Search: " }, function(input)
+    if input and input ~= "" then
+      for i, file in ipairs(M.state.files) do
+        if file.name:lower():find(input:lower(), 1, true) then
+          M.state.cursor = i
+          if M.state.explorer_win and api.nvim_win_is_valid(M.state.explorer_win) then
+            api.nvim_win_set_cursor(M.state.explorer_win, {i, 0})
+          end
+          update_preview()
+          break
+        end
+      end
+    end
+  end)
 end
 
 function M.show_help()
   local help_text = {
-    "Feather.nvim Split View Help",
+    "Feather.nvim Help",
     "",
     "Navigation:",
-    "  j/k     - Move cursor down/up in column",
-    "  h       - Focus left column / Go to parent (at first column)",
-    "  l/<CR>  - Open directory in right column / Open file",
-    "  -       - Go to parent directory",
+    "  j/k     - Move cursor down/up",
+    "  h/-     - Go to parent directory",
+    "  l/<CR>  - Open file/directory",
+    "  ~       - Go to home directory",
     "",
     "Features:",
     "  .       - Toggle hidden files",
     "  i       - Toggle icons",
     "  p       - Toggle file preview",
-    "  |       - Toggle column separators",
+    "  /       - Search files",
     "  ?       - Show this help",
     "",
     "Preview:",
@@ -462,228 +523,9 @@ function M.show_help()
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, { title = "Feather Help" })
 end
 
-function M.toggle_preview()
-  local col = M.state.columns[M.state.active_col]
-  if not col or not api.nvim_win_is_valid(col.win) then return end
-  
-  M.state.preview_enabled = not M.state.preview_enabled
-  
-  if M.state.preview_enabled then
-    local line = api.nvim_win_get_cursor(col.win)[1]
-    local file = col.files[line]
-    if file then
-      -- Show preview in split view mode
-      M.show_preview_split(file.path)
-    end
-  else
-    preview.close()
-  end
-end
-
--- Custom preview function for split view
-function M.show_preview_split(filepath)
-  preview.close()
-  
-  if not filepath or filepath == "" then
-    return
-  end
-  
-  -- Create preview buffer
-  local buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_option(buf, "buftype", "nofile")
-  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  
-  -- Calculate position based on container window
-  local container_config = api.nvim_win_get_config(M.state.container_win)
-  local container_width = container_config.width
-  local container_height = container_config.height
-  
-  -- Position preview on the right side of container
-  local preview_width = math.floor(container_width * 0.3)
-  local preview_height = container_height - 2
-  
-  -- Check if there's enough space
-  if preview_width < 30 then
-    vim.notify("Not enough space for preview", vim.log.levels.WARN)
-    return
-  end
-  
-  -- Create preview window relative to container
-  local preview_win = api.nvim_open_win(buf, false, {
-    relative = "editor",
-    width = preview_width,
-    height = preview_height,
-    row = container_config.row + 1,
-    col = container_config.col + container_width + 1,
-    style = "minimal",
-    border = "single",
-    title = " Preview ",
-    title_pos = "center",
-  })
-  
-  -- Set window options
-  api.nvim_win_set_option(preview_win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
-  api.nvim_win_set_option(preview_win, "cursorline", false)
-  api.nvim_win_set_option(preview_win, "number", true)
-  api.nvim_win_set_option(preview_win, "wrap", true)
-  
-  -- Store preview state
-  preview.state.win = preview_win
-  preview.state.buf = buf
-  preview.state.current_file = filepath
-  
-  -- Load file content
-  preview.render_preview(buf, filepath)
-end
-
-function M.preview_scroll(lines)
-  if M.state.preview_enabled then
-    preview.scroll(lines)
-  end
-end
-
-function M.toggle_column_separator()
-  M.state.column_separator = not M.state.column_separator
-  
-  -- Recreate all column windows with new border settings
-  local container_width = api.nvim_win_get_width(M.state.container_win) - 2
-  local container_height = api.nvim_win_get_height(M.state.container_win)
-  
-  for i, col in ipairs(M.state.columns) do
-    -- Close old window
-    if api.nvim_win_is_valid(col.win) then
-      api.nvim_win_close(col.win, true)
-    end
-    
-    -- Create new window with updated border
-    local buf, win = create_column_window(
-      M.state.container_win,
-      i,
-      #M.state.columns,
-      container_width,
-      container_height
-    )
-    
-    col.buf = buf
-    col.win = win
-    setup_column_keymaps(col.buf, i)
-    render_files(col.buf, col.files, i == M.state.active_col)
-    api.nvim_win_set_cursor(col.win, {col.cursor, 0})
-  end
-  
-  update_column_highlights()
-  api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
-end
-
-function M.go_parent()
-  local col = M.state.columns[M.state.active_col]
-  if not col then return end
-  
-  local parent_dir = fn.fnamemodify(col.dir, ":h")
-  if parent_dir == col.dir then
-    return -- Already at root
-  end
-  
-  -- Remove columns to the right
-  for i = #M.state.columns, M.state.active_col, -1 do
-    local c = M.state.columns[i]
-    if api.nvim_win_is_valid(c.win) then
-      api.nvim_win_close(c.win, true)
-    end
-    table.remove(M.state.columns, i)
-  end
-  
-  -- If we're at the first column, add parent directory to the left
-  if M.state.active_col == 1 then
-    -- Get parent's parent for context
-    local grandparent_dir = fn.fnamemodify(parent_dir, ":h")
-    
-    -- Insert grandparent column at the beginning if different from parent
-    if grandparent_dir ~= parent_dir then
-      local files = get_files(grandparent_dir)
-      table.insert(M.state.columns, 1, {
-        win = nil,
-        buf = nil,
-        dir = grandparent_dir,
-        files = files,
-        cursor = 1,
-      })
-      
-      -- Update active column index since we inserted a column at the beginning
-      M.state.active_col = 2
-      
-      -- Find parent directory in grandparent's file list
-      local parent_name = fn.fnamemodify(parent_dir, ":t")
-      for i, file in ipairs(files) do
-        if file.name == parent_name and file.type == "directory" then
-          M.state.columns[1].cursor = i
-          break
-        end
-      end
-    end
-    
-    -- Get the current column after potential insertion
-    col = M.state.columns[M.state.active_col]
-    
-    -- Store the original directory name before updating
-    local original_dir = col.dir
-    
-    -- Update current column to show parent directory
-    col.dir = parent_dir
-    col.files = get_files(parent_dir)
-    col.cursor = 1
-    
-    -- Find current directory in parent's file list
-    local current_name = fn.fnamemodify(original_dir, ":t")
-    for i, file in ipairs(col.files) do
-      if file.name == current_name and file.type == "directory" then
-        col.cursor = i
-        break
-      end
-    end
-  else
-    -- Focus on the parent column
-    M.state.active_col = M.state.active_col - 1
-  end
-  
-  -- Recreate all windows
-  local container_width = api.nvim_win_get_width(M.state.container_win)
-  local container_height = api.nvim_win_get_height(M.state.container_win)
-  
-  for i, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win or 0) then
-      api.nvim_win_close(col.win, true)
-    end
-    
-    local buf, win = create_column_window(
-      M.state.container_win,
-      i,
-      #M.state.columns,
-      container_width,
-      container_height
-    )
-    
-    col.buf = buf
-    col.win = win
-    setup_column_keymaps(col.buf, i)
-    render_files(col.buf, col.files, i == M.state.active_col)
-    api.nvim_win_set_cursor(col.win, {col.cursor, 0})
-  end
-  
-  update_column_highlights()
-  api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
-end
-
 function M.setup(opts)
-  if opts.max_columns then
-    M.state.max_columns = opts.max_columns
-  end
   M.state.show_hidden = opts.show_hidden or false
   M.state.use_icons = opts.use_icons == nil and true or opts.use_icons
-  
-  -- Get column separator setting from config
-  local cfg = config.get()
-  M.state.column_separator = cfg.features.column_separator
   
   -- Setup highlights if not already done
   local has_highlights = pcall(require, "feather.highlights")

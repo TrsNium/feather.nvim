@@ -34,11 +34,8 @@ function M.setup(opts)
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
   
-  -- Check if nvim-web-devicons is available
-  local has_devicons, devicons = pcall(require, "nvim-web-devicons")
-  if has_devicons and M.state.use_icons then
-    devicons.setup()
-  end
+  -- Setup icons module
+  icons.setup()
   
   -- Setup highlights
   highlights.setup()
@@ -89,14 +86,25 @@ end
 local function render_files(buf, files)
   local lines = {}
   local line_highlights = {}
+  local icon_highlights = {}
   
   for i, file in ipairs(files) do
     local line = ""
     local hl_group = highlights.get_highlight(file.type, file.name)
+    local icon_start = 0
     
     if M.state.use_icons then
-      local icon = icons.get_icon(file.name, file.type == "directory")
+      local icon, icon_hl = icons.get_icon(file.name, file.type == "directory")
       line = icon .. " " .. file.name
+      -- Store icon highlight info
+      if icon_hl then
+        table.insert(icon_highlights, {
+          line = i - 1,
+          col_start = 0,
+          col_end = vim.fn.strwidth(icon),
+          hl_group = icon_hl
+        })
+      end
     else
       local prefix = file.type == "directory" and "▸ " or "  "
       line = prefix .. file.name
@@ -121,9 +129,22 @@ local function render_files(buf, files)
   local ns_id = api.nvim_create_namespace("feather")
   api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
   
+  -- Apply line highlights
   for _, hl in ipairs(line_highlights) do
     local line_num, hl_group = hl[1], hl[2]
     api.nvim_buf_add_highlight(buf, ns_id, hl_group, line_num, 0, -1)
+  end
+  
+  -- Apply icon highlights (these take precedence)
+  for _, icon_hl in ipairs(icon_highlights) do
+    api.nvim_buf_add_highlight(
+      buf,
+      ns_id,
+      icon_hl.hl_group,
+      icon_hl.line,
+      icon_hl.col_start,
+      icon_hl.col_end
+    )
   end
   
   if not modifiable then
