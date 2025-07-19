@@ -173,11 +173,30 @@ local function render_directory_preview(buf, dirpath)
   api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 end
 
+function M.render_preview(buf, filepath)
+  local stat = vim.loop.fs_stat(filepath)
+  if not stat then
+    api.nvim_buf_set_lines(buf, 0, -1, false, {"Cannot read file: " .. filepath})
+    return
+  end
+  
+  if stat.type == "directory" then
+    render_directory_preview(buf, filepath)
+  elseif is_binary(filepath) then
+    render_binary_preview(buf, filepath)
+  else
+    render_text_preview(buf, filepath)
+  end
+  
+  api.nvim_buf_set_option(buf, "modifiable", false)
+end
+
 function M.show(filepath, parent_win, position)
   -- Close existing preview if any
   M.close()
   
   if not filepath or filepath == "" then
+    vim.notify("Preview: No filepath provided", vim.log.levels.WARN)
     return
   end
   
@@ -186,6 +205,9 @@ function M.show(filepath, parent_win, position)
     vim.notify("Preview: Invalid parent window", vim.log.levels.ERROR)
     return
   end
+  
+  -- Debug info
+  -- vim.notify("Preview: Showing " .. filepath .. " next to window " .. parent_win, vim.log.levels.INFO)
   
   -- Create preview buffer
   M.state.buf = api.nvim_create_buf(false, true)
@@ -198,13 +220,26 @@ function M.show(filepath, parent_win, position)
   local parent_width = win_config.width or api.nvim_win_get_width(parent_win)
   local parent_height = win_config.height or api.nvim_win_get_height(parent_win)
   
+  -- Get parent window position
+  local parent_row, parent_col
+  if win_config.relative == "win" then
+    -- For nested windows (like split view columns), calculate absolute position
+    local parent_parent_win = win_config.win
+    local parent_parent_config = api.nvim_win_get_config(parent_parent_win)
+    parent_row = (parent_parent_config.row or 0) + (win_config.row or 0)
+    parent_col = (parent_parent_config.col or 0) + (win_config.col or 0)
+  else
+    parent_row = win_config.row or 0
+    parent_col = win_config.col or 0
+  end
+  
   -- Get actual screen dimensions
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
   -- Calculate available space
-  local space_right = screen_width - (win_config.col + parent_width)
-  local space_bottom = screen_height - (win_config.row + parent_height)
+  local space_right = screen_width - (parent_col + parent_width)
+  local space_bottom = screen_height - (parent_row + parent_height)
   
   local width, height, row, col
   

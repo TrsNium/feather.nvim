@@ -247,9 +247,8 @@ function M.move_in_column(direction)
     if M.state.preview_enabled then
       local file = col.files[new_line]
       if file then
-        -- Use the last column window as parent for preview
-        local last_col = M.state.columns[#M.state.columns]
-        preview.update(file.path, last_col.win)
+        -- Update preview content
+        M.show_preview_split(file.path)
       end
     end
   end
@@ -473,13 +472,68 @@ function M.toggle_preview()
     local line = api.nvim_win_get_cursor(col.win)[1]
     local file = col.files[line]
     if file then
-      -- Use the last column window as parent for preview
-      local last_col = M.state.columns[#M.state.columns]
-      preview.show(file.path, last_col.win, "right")
+      -- Show preview in split view mode
+      M.show_preview_split(file.path)
     end
   else
     preview.close()
   end
+end
+
+-- Custom preview function for split view
+function M.show_preview_split(filepath)
+  preview.close()
+  
+  if not filepath or filepath == "" then
+    return
+  end
+  
+  -- Create preview buffer
+  local buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(buf, "buftype", "nofile")
+  api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  
+  -- Calculate position based on container window
+  local container_config = api.nvim_win_get_config(M.state.container_win)
+  local container_width = container_config.width
+  local container_height = container_config.height
+  
+  -- Position preview on the right side of container
+  local preview_width = math.floor(container_width * 0.3)
+  local preview_height = container_height - 2
+  
+  -- Check if there's enough space
+  if preview_width < 30 then
+    vim.notify("Not enough space for preview", vim.log.levels.WARN)
+    return
+  end
+  
+  -- Create preview window relative to container
+  local preview_win = api.nvim_open_win(buf, false, {
+    relative = "editor",
+    width = preview_width,
+    height = preview_height,
+    row = container_config.row + 1,
+    col = container_config.col + container_width + 1,
+    style = "minimal",
+    border = "single",
+    title = " Preview ",
+    title_pos = "center",
+  })
+  
+  -- Set window options
+  api.nvim_win_set_option(preview_win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
+  api.nvim_win_set_option(preview_win, "cursorline", false)
+  api.nvim_win_set_option(preview_win, "number", true)
+  api.nvim_win_set_option(preview_win, "wrap", true)
+  
+  -- Store preview state
+  preview.state.win = preview_win
+  preview.state.buf = buf
+  preview.state.current_file = filepath
+  
+  -- Load file content
+  preview.render_preview(buf, filepath)
 end
 
 function M.preview_scroll(lines)
