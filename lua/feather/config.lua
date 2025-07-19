@@ -2,7 +2,7 @@ local M = {}
 
 M.defaults = {
   window = {
-    width = 0.45,  -- 45% width to account for margins in 5:5 layout
+    width = 0.35,  -- 35% width to prevent overlap with preview
     height = 0.8,
     border = "rounded",
     position = "center",
