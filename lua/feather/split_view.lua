@@ -16,6 +16,12 @@ M.state = {
   max_columns = 3,  -- Reduce max columns to make room for preview
   preview_enabled = nil,  -- Will be set from config
   column_separator = true,
+  -- Search state
+  search_state = {
+    pattern = "",
+    matches = {},
+    current_match = 1,
+  },
 }
 
 local function get_files(dir)
@@ -242,6 +248,9 @@ setup_column_keymaps = function(buf, col_index)
   vim.keymap.set("n", "<C-d>", function() M.preview_scroll(10) end, opts)
   vim.keymap.set("n", "<C-u>", function() M.preview_scroll(-10) end, opts)
   vim.keymap.set("n", "|", function() M.toggle_column_separator() end, opts)
+  vim.keymap.set("n", "/", function() M.search() end, opts)
+  vim.keymap.set("n", "n", function() M.go_to_search_result(1) end, opts)
+  vim.keymap.set("n", "N", function() M.go_to_search_result(-1) end, opts)
 end
 
 function M.move_in_column(direction)
@@ -253,7 +262,11 @@ function M.move_in_column(direction)
   local line_count = api.nvim_buf_line_count(col.buf)
   
   if new_line >= 1 and new_line <= line_count then
+    -- Ensure we're focused on the correct window
+    api.nvim_set_current_win(col.win)
     api.nvim_win_set_cursor(col.win, {new_line, 0})
+    
+    -- Update the column's cursor position
     col.cursor = new_line
     
     -- Update preview if enabled
@@ -314,7 +327,16 @@ function M.focus_column(direction)
     
     M.state.active_col = new_col
     update_column_highlights()
-    api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
+    local active_col = M.state.columns[M.state.active_col]
+    api.nvim_set_current_win(active_col.win)
+    
+    -- Update preview when changing columns
+    if M.state.preview_enabled and active_col.files and active_col.cursor then
+      local file = active_col.files[active_col.cursor]
+      if file then
+        preview.show(file.path, M.state.container_win, "right")
+      end
+    end
   end
 end
 
@@ -533,6 +555,9 @@ function M.show_help()
     "  i       - Toggle icons",
     "  p       - Toggle file preview",
     "  |       - Toggle column separators",
+    "  /       - Search files in current column",
+    "  n       - Next search result",
+    "  N       - Previous search result",
     "  ?       - Show this help",
     "",
     "Preview:",
@@ -705,6 +730,73 @@ function M.go_parent()
   
   update_column_highlights()
   api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
+end
+
+function M.search()
+  vim.ui.input({ prompt = "Search: " }, function(input)
+    if input and input ~= "" then
+      local col = M.state.columns[M.state.active_col]
+      if not col then return end
+      
+      M.state.search_state.pattern = input:lower()
+      M.state.search_state.matches = {}
+      M.state.search_state.current_match = 1
+      
+      -- Find all matches in current column
+      for i, file in ipairs(col.files) do
+        if file.name:lower():find(M.state.search_state.pattern, 1, true) then
+          table.insert(M.state.search_state.matches, i)
+        end
+      end
+      
+      -- Go to first match
+      if #M.state.search_state.matches > 0 then
+        M.state.search_state.current_match = 0
+        M.go_to_search_result(1)
+      else
+        vim.notify("No matches found for: " .. input, vim.log.levels.WARN)
+      end
+    end
+  end)
+end
+
+function M.go_to_search_result(direction)
+  if #M.state.search_state.matches == 0 then return end
+  
+  local col = M.state.columns[M.state.active_col]
+  if not col or not api.nvim_win_is_valid(col.win) then return end
+  
+  M.state.search_state.current_match = M.state.search_state.current_match + direction
+  
+  -- Wrap around
+  if M.state.search_state.current_match > #M.state.search_state.matches then
+    M.state.search_state.current_match = 1
+  elseif M.state.search_state.current_match < 1 then
+    M.state.search_state.current_match = #M.state.search_state.matches
+  end
+  
+  local line_num = M.state.search_state.matches[M.state.search_state.current_match]
+  
+  -- Ensure we're focused on the correct window and move cursor
+  api.nvim_set_current_win(col.win)
+  api.nvim_win_set_cursor(col.win, {line_num, 0})
+  
+  -- Update the column's cursor position
+  col.cursor = line_num
+  
+  -- Update preview if enabled
+  if M.state.preview_enabled then
+    local file = col.files[line_num]
+    if file then
+      preview.show(file.path, M.state.container_win, "right")
+    end
+  end
+  
+  -- Show match info
+  vim.notify(string.format("Match %d/%d: %s", 
+    M.state.search_state.current_match, 
+    #M.state.search_state.matches,
+    col.files[line_num].name), vim.log.levels.INFO)
 end
 
 function M.setup(opts)
