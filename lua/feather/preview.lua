@@ -250,8 +250,9 @@ function M.show(filepath, parent_win, position)
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
-  -- Calculate preview dimensions with margins (left=5, center=5, right=5)
-  local preview_width = math.floor(screen_width * 0.5) - 10
+  -- Calculate preview width to fill remaining space after container + margins
+  local screen_center = math.floor(screen_width / 2)
+  local preview_width = screen_width - screen_center - 5  -- From center to right edge minus right margin
   local preview_height = container_height
   
   -- Ensure minimum preview width
@@ -259,8 +260,9 @@ function M.show(filepath, parent_win, position)
     preview_width = 40
   end
   
-  -- Position preview to the right of the container window with larger margin
-  local preview_col = container_col + container_width + 5
+  -- Position preview at screen center for true 5:5 split
+  local screen_center = math.floor(screen_width / 2)
+  local preview_col = screen_center
   local preview_row = container_row
   
   -- Check if preview would go off-screen (preserving right margin)
