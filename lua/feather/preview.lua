@@ -65,6 +65,24 @@ local function get_file_info(filepath)
   }
 end
 
+-- Helper function to safely set buffer lines
+local function safe_buf_set_lines(buf, start_line, end_line, strict_indexing, lines)
+  if not api.nvim_buf_is_valid(buf) then
+    return
+  end
+  
+  local modifiable = api.nvim_buf_get_option(buf, "modifiable")
+  if not modifiable then
+    api.nvim_buf_set_option(buf, "modifiable", true)
+  end
+  
+  api.nvim_buf_set_lines(buf, start_line, end_line, strict_indexing, lines)
+  
+  if not modifiable then
+    api.nvim_buf_set_option(buf, "modifiable", false)
+  end
+end
+
 local function render_binary_preview(buf, filepath)
   local info = get_file_info(filepath)
   local ext = fn.fnamemodify(filepath, ":e"):lower()
@@ -94,7 +112,7 @@ local function render_binary_preview(buf, filepath)
     table.insert(lines, "Archive file - use an archive manager to open.")
   end
   
-  api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  safe_buf_set_lines(buf, 0, -1, false, lines)
 end
 
 local function render_text_preview(buf, filepath)
@@ -120,7 +138,7 @@ local function render_text_preview(buf, filepath)
     end
   end
   
-  api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  safe_buf_set_lines(buf, 0, -1, false, lines)
   
   -- Try to detect and set appropriate filetype
   local ft = vim.filetype.match({ filename = filepath })
@@ -170,13 +188,13 @@ local function render_directory_preview(buf, dirpath)
     table.insert(lines, "(Empty directory)")
   end
   
-  api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  safe_buf_set_lines(buf, 0, -1, false, lines)
 end
 
 function M.render_preview(buf, filepath)
   local stat = vim.loop.fs_stat(filepath)
   if not stat then
-    api.nvim_buf_set_lines(buf, 0, -1, false, {"Cannot read file: " .. filepath})
+    safe_buf_set_lines(buf, 0, -1, false, {"Cannot read file: " .. filepath})
     return
   end
   
@@ -312,7 +330,7 @@ function M.show(filepath, parent_win, position)
       render_text_preview(M.state.buf, filepath)
     end
   else
-    api.nvim_buf_set_lines(M.state.buf, 0, -1, false, {"Error: File not found"})
+    safe_buf_set_lines(M.state.buf, 0, -1, false, {"Error: File not found"})
   end
   
   api.nvim_buf_set_option(M.state.buf, "modifiable", false)

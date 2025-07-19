@@ -30,7 +30,7 @@ M.state = {
   -- Settings
   show_hidden = false,
   use_icons = true,
-  preview_enabled = true,
+  preview_enabled = true,  -- Start with preview enabled by default
 }
 
 local function get_files(dir)
@@ -298,6 +298,7 @@ function M.update_layout()
       M.state.preview_buf = api.nvim_create_buf(false, true)
       api.nvim_buf_set_option(M.state.preview_buf, "buftype", "nofile")
       api.nvim_buf_set_option(M.state.preview_buf, "bufhidden", "wipe")
+      api.nvim_buf_set_option(M.state.preview_buf, "modifiable", true)
       
       M.state.preview_win = api.nvim_open_win(M.state.preview_buf, false, {
         relative = "win",
