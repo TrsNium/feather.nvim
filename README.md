@@ -71,8 +71,9 @@ use {
 | Key | Action |
 |-----|--------|
 | `j`/`k` | Navigate down/up in current column |
-| `h` | Focus left column |
+| `h` | Focus left column / Go to parent (at first column) |
 | `l`/`<CR>` | Open directory in new column / Open file |
+| `-` | Go to parent directory |
 | `.` | Toggle hidden files |
 | `i` | Toggle icons |
 | `?` | Show help |

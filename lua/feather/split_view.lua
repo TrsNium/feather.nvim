@@ -185,6 +185,7 @@ local function setup_column_keymaps(buf, col_index)
   vim.keymap.set("n", ".", function() M.toggle_hidden() end, opts)
   vim.keymap.set("n", "i", function() M.toggle_icons() end, opts)
   vim.keymap.set("n", "?", function() M.show_help() end, opts)
+  vim.keymap.set("n", "-", function() M.go_parent() end, opts)
 end
 
 function M.move_in_column(direction)
@@ -203,6 +204,13 @@ end
 
 function M.focus_column(direction)
   local new_col = M.state.active_col + direction
+  
+  -- If trying to go left from the first column, go to parent directory
+  if new_col < 1 and M.state.active_col == 1 then
+    M.go_parent()
+    return
+  end
+  
   if new_col >= 1 and new_col <= #M.state.columns then
     M.state.active_col = new_col
     update_column_highlights()
@@ -275,6 +283,10 @@ function M.open()
   for i, col in ipairs(M.state.columns) do
     setup_column_keymaps(col.buf, i)
   end
+  
+  -- Focus on the first column
+  update_column_highlights()
+  api.nvim_set_current_win(M.state.columns[1].win)
 end
 
 function M.close()
@@ -326,8 +338,9 @@ function M.show_help()
     "",
     "Navigation:",
     "  j/k     - Move cursor down/up in column",
-    "  h       - Focus left column",
+    "  h       - Focus left column / Go to parent (at first column)",
     "  l/<CR>  - Open directory in right column / Open file",
+    "  -       - Go to parent directory",
     "",
     "Features:",
     "  .       - Toggle hidden files",
@@ -339,6 +352,96 @@ function M.show_help()
   }
   
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, { title = "Feather Help" })
+end
+
+function M.go_parent()
+  local col = M.state.columns[M.state.active_col]
+  if not col then return end
+  
+  local parent_dir = fn.fnamemodify(col.dir, ":h")
+  if parent_dir == col.dir then
+    return -- Already at root
+  end
+  
+  -- Remove columns to the right
+  for i = #M.state.columns, M.state.active_col, -1 do
+    local c = M.state.columns[i]
+    if api.nvim_win_is_valid(c.win) then
+      api.nvim_win_close(c.win, true)
+    end
+    table.remove(M.state.columns, i)
+  end
+  
+  -- If we're at the first column, add parent directory to the left
+  if M.state.active_col == 1 then
+    -- Get parent's parent for context
+    local grandparent_dir = fn.fnamemodify(parent_dir, ":h")
+    
+    -- Insert grandparent column at the beginning if different from parent
+    if grandparent_dir ~= parent_dir then
+      local files = get_files(grandparent_dir)
+      table.insert(M.state.columns, 1, {
+        win = nil,
+        buf = nil,
+        dir = grandparent_dir,
+        files = files,
+        cursor = 1,
+      })
+      
+      -- Find parent directory in grandparent's file list
+      local parent_name = fn.fnamemodify(parent_dir, ":t")
+      for i, file in ipairs(files) do
+        if file.name == parent_name and file.type == "directory" then
+          M.state.columns[1].cursor = i
+          break
+        end
+      end
+    end
+    
+    -- Update current column to show parent directory
+    col.dir = parent_dir
+    col.files = get_files(parent_dir)
+    col.cursor = 1
+    
+    -- Find current directory in parent's file list
+    local current_name = fn.fnamemodify(M.state.columns[M.state.active_col + 1].dir, ":t")
+    for i, file in ipairs(col.files) do
+      if file.name == current_name and file.type == "directory" then
+        col.cursor = i
+        break
+      end
+    end
+  else
+    -- Focus on the parent column
+    M.state.active_col = M.state.active_col - 1
+  end
+  
+  -- Recreate all windows
+  local container_width = api.nvim_win_get_width(M.state.container_win)
+  local container_height = api.nvim_win_get_height(M.state.container_win)
+  
+  for i, col in ipairs(M.state.columns) do
+    if api.nvim_win_is_valid(col.win or 0) then
+      api.nvim_win_close(col.win, true)
+    end
+    
+    local buf, win = create_column_window(
+      M.state.container_win,
+      i,
+      #M.state.columns,
+      container_width,
+      container_height
+    )
+    
+    col.buf = buf
+    col.win = win
+    setup_column_keymaps(col.buf, i)
+    render_files(col.buf, col.files, i == M.state.active_col)
+    api.nvim_win_set_cursor(col.win, {col.cursor, 0})
+  end
+  
+  update_column_highlights()
+  api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
 end
 
 function M.setup(opts)
