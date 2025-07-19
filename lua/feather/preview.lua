@@ -250,8 +250,8 @@ function M.show(filepath, parent_win, position)
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
-  -- Calculate preview dimensions (50% of container width for 5:5 ratio)
-  local preview_width = math.floor(container_width * 0.5)
+  -- Calculate preview dimensions (50% of screen width minus margin for balanced layout)
+  local preview_width = math.floor(screen_width * 0.5) - 2
   local preview_height = container_height
   
   -- Ensure minimum preview width
@@ -259,24 +259,18 @@ function M.show(filepath, parent_win, position)
     preview_width = 40
   end
   
-  -- Position preview to the right of the container window (no gap for 5:5 split)
-  local preview_col = container_col + container_width
+  -- Position preview to the right of the container window with small margin
+  local preview_col = container_col + container_width + 2
   local preview_row = container_row
   
   -- Check if preview would go off-screen
   if preview_col + preview_width > screen_width then
-    -- Try to position it to the left of the container
-    preview_col = container_col - preview_width - 2
+    -- If going off-screen, adjust width to fit exactly
+    preview_width = screen_width - preview_col
     
-    -- If that's also off-screen, reduce width and position on right
-    if preview_col < 0 then
-      preview_col = container_col + container_width + 2
-      preview_width = screen_width - preview_col - 2
-      
-      -- If still too narrow, don't show preview
-      if preview_width < 30 then
-        return
-      end
+    -- If still too narrow, don't show preview
+    if preview_width < 30 then
+      return
     end
   end
   
