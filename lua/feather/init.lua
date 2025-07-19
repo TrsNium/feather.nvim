@@ -67,7 +67,17 @@ local function render_files(buf, files)
     
     table.insert(lines, line)
   end
+  
+  local modifiable = api.nvim_buf_get_option(buf, "modifiable")
+  if not modifiable then
+    api.nvim_buf_set_option(buf, "modifiable", true)
+  end
+  
   api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  
+  if not modifiable then
+    api.nvim_buf_set_option(buf, "modifiable", false)
+  end
 end
 
 local function create_float_window()
@@ -171,9 +181,6 @@ function M.open()
   
   setup_keymaps(M.state.buf)
   M.refresh()
-  
-  api.nvim_buf_set_option(M.state.buf, "modifiable", true)
-  api.nvim_buf_set_option(M.state.buf, "modifiable", false)
 end
 
 function M.close()
