@@ -13,9 +13,20 @@ M.setup_done = false
 M.has_devicons = false
 M.devicons = nil
 
--- Setup function to integrate with nvim-web-devicons
+-- Setup function to integrate with nvim-web-devicons and config
 function M.setup()
   if M.setup_done then return end
+  
+  -- Update icons from config
+  local config = require("feather.config")
+  local cfg = config.get()
+  if cfg.icons.folder and cfg.icons.folder ~= "" then
+    M.constants.FOLDER_ICON = cfg.icons.folder
+    M.constants.FOLDER_OPEN_ICON = cfg.icons.folder
+  end
+  if cfg.icons.default_file and cfg.icons.default_file ~= "" then
+    M.constants.DEFAULT_FILE_ICON = cfg.icons.default_file
+  end
   
   local ok, devicons = pcall(require, "nvim-web-devicons")
   if ok then

@@ -55,7 +55,7 @@ local function render_files(buf, files, is_active)
     local hl_group = highlights.get_highlight(file.type, file.name)
     
     if M.state.use_icons then
-      local icon = icons.get_icon(file.name, file.type == "directory")
+      local icon, icon_hl = icons.get_icon(file.name, file.type == "directory")
       line = icon .. " " .. file.name
     else
       local prefix = file.type == "directory" and "▸ " or "  "
