@@ -275,8 +275,29 @@ function M.focus_column(direction)
         table.remove(M.state.columns, i)
       end
       
-      -- Resize remaining columns
-      resize_columns()
+      -- Recreate all windows with new size
+      local container_width = api.nvim_win_get_width(M.state.container_win) - 2
+      local container_height = api.nvim_win_get_height(M.state.container_win)
+      
+      for i, col in ipairs(M.state.columns) do
+        if api.nvim_win_is_valid(col.win) then
+          api.nvim_win_close(col.win, true)
+        end
+        
+        local buf, win = create_column_window(
+          M.state.container_win,
+          i,
+          #M.state.columns,
+          container_width,
+          container_height
+        )
+        
+        col.buf = buf
+        col.win = win
+        setup_column_keymaps(col.buf, i)
+        render_files(col.buf, col.files, i == new_col)
+        api.nvim_win_set_cursor(col.win, {col.cursor, 0})
+      end
     end
     
     M.state.active_col = new_col
