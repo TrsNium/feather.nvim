@@ -24,12 +24,9 @@ M._user_setup_done = false
 function M.setup(opts)
   opts = opts or {}
   
-  -- Debug: Show what options were passed
+  -- Mark as user setup if options are provided
   if vim.tbl_count(opts) > 0 then
-    vim.notify("Feather.setup called with options: " .. vim.inspect(opts.features), vim.log.levels.INFO)
     M._user_setup_done = true
-  else
-    vim.notify("Feather.setup called with empty options (auto-setup)", vim.log.levels.WARN)
   end
   
   config.setup(opts)
@@ -57,8 +54,6 @@ end
 -- Auto-setup with defaults if not already setup by user
 local function ensure_setup()
   if not M._user_setup_done then
-    -- Debug: print when auto-setup is called
-    -- vim.notify("Feather: Auto-setup with defaults", vim.log.levels.WARN)
     M.setup({})
   end
 end
