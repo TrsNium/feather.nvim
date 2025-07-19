@@ -20,7 +20,7 @@ M.defaults = {
     column_separator = true,  -- Show vertical separator between columns
   },
   preview = {
-    enabled = false,      -- Enable preview by default
+    enabled = true,      -- Enable preview by default
     position = "auto",    -- "auto", "right", "bottom"
     max_lines = 100,      -- Maximum lines to show in preview
     min_width = 30,       -- Minimum width for preview window

@@ -13,8 +13,8 @@ M.state = {
   active_col = 1,
   show_hidden = false,
   use_icons = true,
-  max_columns = 4,
-  preview_enabled = false,
+  max_columns = 3,  -- Reduce max columns to make room for preview
+  preview_enabled = nil,  -- Will be set from config
   column_separator = true,
 }
 
@@ -136,6 +136,16 @@ end
 local setup_column_keymaps
 
 
+local function update_title()
+  if M.state.container_win and api.nvim_win_is_valid(M.state.container_win) then
+    local col = M.state.columns[M.state.active_col]
+    if col then
+      local title = " Feather - " .. fn.fnamemodify(col.dir, ":~") .. " "
+      api.nvim_win_set_config(M.state.container_win, { title = title })
+    end
+  end
+end
+
 local function update_column_highlights()
   for i, col in ipairs(M.state.columns) do
     if api.nvim_win_is_valid(col.win) then
@@ -146,6 +156,8 @@ local function update_column_highlights()
       end
     end
   end
+  -- Update title when column focus changes
+  update_title()
 end
 
 local function add_column(dir)
@@ -209,6 +221,7 @@ local function add_column(dir)
   M.state.active_col = #M.state.columns
   update_column_highlights()
   api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
+  update_title()
 end
 
 setup_column_keymaps = function(buf, col_index)
@@ -385,6 +398,14 @@ function M.open()
     -- Set buffer as modifiable to allow cursor movement
     vim.cmd('setlocal modifiable')
     vim.cmd('setlocal nomodifiable')
+    
+    -- Show preview if enabled and files exist
+    if M.state.preview_enabled and M.state.columns[1].files and #M.state.columns[1].files > 0 then
+      local file = M.state.columns[1].files[1]
+      if file then
+        preview.show(file.path, M.state.columns[1].win, "right")
+      end
+    end
   end
 end
 
@@ -405,7 +426,7 @@ function M.close()
   M.state.columns = {}
   M.state.container_win = nil
   M.state.container_buf = nil
-  M.state.preview_enabled = false
+  -- Don't reset preview_enabled - keep the config value
 end
 
 function M.toggle()
@@ -570,6 +591,11 @@ function M.go_parent()
     
     -- Get the current column after potential insertion
     col = M.state.columns[M.state.active_col]
+    if not col then
+      -- If column doesn't exist, use the first column
+      M.state.active_col = 1
+      col = M.state.columns[1]
+    end
     
     -- Store the original directory name before updating
     local original_dir = col.dir
@@ -627,9 +653,10 @@ function M.setup(opts)
   M.state.show_hidden = opts.show_hidden or false
   M.state.use_icons = opts.use_icons == nil and true or opts.use_icons
   
-  -- Get column separator setting from config
+  -- Get settings from config
   local cfg = config.get()
   M.state.column_separator = cfg.features.column_separator
+  M.state.preview_enabled = cfg.preview.enabled
   
   -- Setup highlights if not already done
   local has_highlights = pcall(require, "feather.highlights")

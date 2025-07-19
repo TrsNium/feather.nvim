@@ -15,7 +15,7 @@ M.state = {
   selected_line = 1,
   show_hidden = false,
   use_icons = true,
-  preview_enabled = false,
+  preview_enabled = nil,  -- Will be set from config
 }
 
 -- Store whether user has called setup
@@ -33,6 +33,7 @@ function M.setup(opts)
   local cfg = config.get()
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
+  M.state.preview_enabled = cfg.preview.enabled
   
   -- Setup icons module
   icons.setup()
@@ -272,6 +273,14 @@ function M.open()
     
     setup_keymaps(M.state.buf)
     M.refresh()
+    
+    -- Show preview if enabled
+    if M.state.preview_enabled and #M.state.files > 0 then
+      local file = M.state.files[1]
+      if file then
+        preview.show(file.path, M.state.win, "auto")
+      end
+    end
   end
 end
 
@@ -286,7 +295,7 @@ function M.close()
     end
     M.state.buf = nil
     M.state.win = nil
-    M.state.preview_enabled = false
+    -- Don't reset preview_enabled - keep the config value
   end
 end
 
