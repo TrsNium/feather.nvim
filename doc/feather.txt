@@ -1,0 +1,207 @@
+*feather.txt*  A lightweight file explorer for Neovim with floating window
+
+Author: TrsNium
+License: MIT
+
+==============================================================================
+CONTENTS                                                     *feather-contents*
+
+1. Introduction ................................ |feather-introduction|
+2. Installation ................................ |feather-installation|
+3. Usage ....................................... |feather-usage|
+4. Commands .................................... |feather-commands|
+5. Key mappings ................................ |feather-mappings|
+6. Configuration ............................... |feather-configuration|
+7. Functions ................................... |feather-functions|
+8. Changelog ................................... |feather-changelog|
+
+==============================================================================
+1. INTRODUCTION                                          *feather-introduction*
+
+Feather.nvim is a lightweight file explorer plugin for Neovim that operates
+in a floating window. It is inspired by rnvimr and NERDTree, providing a
+modern and fast file browsing experience.
+
+Features:
+- Browse files and directories in a floating window
+- Icon support for different file types (requires Nerd Font)
+- Quick file search functionality
+- Toggle hidden files visibility
+- Customizable key mappings and appearance
+- Lightweight and fast performance
+
+==============================================================================
+2. INSTALLATION                                          *feather-installation*
+
+Using lazy.nvim:
+>lua
+    {
+      "takuya.hirata.002/feather.nvim",
+      config = function()
+        require("feather").setup({
+          -- your configuration
+        })
+      end,
+    }
+<
+
+Using packer.nvim:
+>lua
+    use {
+      "takuya.hirata.002/feather.nvim",
+      config = function()
+        require("feather").setup({
+          -- your configuration
+        })
+      end
+    }
+<
+
+Requirements:
+- Neovim 0.7.0 or higher
+- A Nerd Font for icon support (optional but recommended)
+
+==============================================================================
+3. USAGE                                                        *feather-usage*
+
+To open the file explorer, use the `:Feather` command or call the
+`require("feather").toggle()` function.
+
+Basic workflow:
+1. Open Feather with `:Feather`
+2. Navigate using j/k keys
+3. Enter directories with l or <CR>
+4. Go back with h
+5. Open files with <CR>
+6. Close with q or <Esc>
+
+==============================================================================
+4. COMMANDS                                                  *feather-commands*
+
+:Feather                                                            *:Feather*
+    Toggle the file explorer window. If it's open, it will close.
+    If it's closed, it will open.
+
+:FeatherOpen                                                    *:FeatherOpen*
+    Open the file explorer window. Does nothing if already open.
+
+:FeatherClose                                                  *:FeatherClose*
+    Close the file explorer window. Does nothing if already closed.
+
+==============================================================================
+5. KEY MAPPINGS                                               *feather-mappings*
+
+Default key mappings in the Feather window:
+
+Navigation:
+    j         Move cursor down
+    k         Move cursor up
+    h         Go to parent directory
+    l, <CR>   Open file or enter directory
+    ~         Go to home directory
+
+Features:
+    .         Toggle hidden files visibility
+    i         Toggle icon display
+    /         Search for files (case-insensitive)
+    ?         Show help
+
+Window:
+    q, <Esc>  Close the file explorer
+
+==============================================================================
+6. CONFIGURATION                                        *feather-configuration*
+
+Feather can be configured by passing options to the setup function:
+
+>lua
+    require("feather").setup({
+      window = {
+        width = 0.8,      -- Window width (0-1 for percentage)
+        height = 0.8,     -- Window height (0-1 for percentage)
+        border = "rounded", -- Border style
+        position = "center", -- Window position
+      },
+      icons = {
+        enabled = true,   -- Enable file icons
+        folder = "",     -- Folder icon
+        default_file = "", -- Default file icon
+      },
+      features = {
+        show_hidden = false, -- Show hidden files by default
+        auto_close = true,   -- Auto close on file open
+      },
+      keymaps = {
+        quit = { "q", "<Esc>" },
+        open = { "<CR>", "l" },
+        parent = { "h" },
+        down = { "j" },
+        up = { "k" },
+        toggle_hidden = { "." },
+        toggle_icons = { "i" },
+        home = { "~" },
+        search = { "/" },
+        help = { "?" },
+      },
+    })
+<
+
+Options:
+
+window.width                                            *feather-window.width*
+    Type: number (0-1)
+    Default: 0.8
+    The width of the floating window as a percentage of the screen.
+
+window.height                                          *feather-window.height*
+    Type: number (0-1)
+    Default: 0.8
+    The height of the floating window as a percentage of the screen.
+
+window.border                                          *feather-window.border*
+    Type: string
+    Default: "rounded"
+    The border style. Options: "none", "single", "double", "rounded", "solid",
+    "shadow"
+
+icons.enabled                                          *feather-icons.enabled*
+    Type: boolean
+    Default: true
+    Whether to show file type icons. Requires a Nerd Font.
+
+features.show_hidden                            *feather-features.show_hidden*
+    Type: boolean
+    Default: false
+    Whether to show hidden files (dotfiles) by default.
+
+==============================================================================
+7. FUNCTIONS                                                *feather-functions*
+
+require("feather").setup({opts})                             *feather.setup()*
+    Set up the plugin with the given configuration options.
+
+require("feather").toggle()                                  *feather.toggle()*
+    Toggle the file explorer window.
+
+require("feather").open()                                      *feather.open()*
+    Open the file explorer window.
+
+require("feather").close()                                    *feather.close()*
+    Close the file explorer window.
+
+require("feather").refresh()                                *feather.refresh()*
+    Refresh the current directory listing.
+
+==============================================================================
+8. CHANGELOG                                                *feather-changelog*
+
+v1.0.0 (2025-01-19)
+    - Initial release
+    - Basic file browsing functionality
+    - Icon support
+    - Hidden files toggle
+    - File search
+    - Customizable configuration
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

@@ -1,0 +1,246 @@
+local M = {}
+local api = vim.api
+local fn = vim.fn
+local icons = require("feather.icons")
+local config = require("feather.config")
+
+M.state = {
+  buf = nil,
+  win = nil,
+  current_dir = nil,
+  files = {},
+  selected_line = 1,
+  show_hidden = false,
+  use_icons = true,
+}
+
+function M.setup(opts)
+  config.setup(opts)
+  local cfg = config.get()
+  M.state.show_hidden = cfg.features.show_hidden
+  M.state.use_icons = cfg.icons.enabled
+end
+
+local function get_files(dir)
+  local files = {}
+  local handle = vim.loop.fs_scandir(dir)
+  if handle then
+    while true do
+      local name, type = vim.loop.fs_scandir_next(handle)
+      if not name then break end
+      
+      if M.state.show_hidden or not name:match("^%.") then
+        table.insert(files, {
+          name = name,
+          type = type,
+          path = dir .. "/" .. name
+        })
+      end
+    end
+  end
+  
+  table.sort(files, function(a, b)
+    if a.type == b.type then
+      return a.name < b.name
+    end
+    return a.type == "directory" and b.type ~= "directory"
+  end)
+  
+  return files
+end
+
+local function render_files(buf, files)
+  local lines = {}
+  for _, file in ipairs(files) do
+    local line = ""
+    if M.state.use_icons then
+      local icon = icons.get_icon(file.name, file.type == "directory")
+      line = icon .. " " .. file.name
+    else
+      local prefix = file.type == "directory" and "▸ " or "  "
+      line = prefix .. file.name
+    end
+    
+    if file.type == "directory" then
+      line = line .. "/"
+    end
+    
+    table.insert(lines, line)
+  end
+  api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+end
+
+local function create_float_window()
+  local cfg = config.get()
+  local width = math.floor(vim.o.columns * cfg.window.width)
+  local height = math.floor(vim.o.lines * cfg.window.height)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  
+  local buf = api.nvim_create_buf(false, true)
+  local win = api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = "minimal",
+    border = cfg.window.border,
+    title = " Feather ",
+    title_pos = "center",
+  })
+  
+  return buf, win
+end
+
+local function setup_keymaps(buf)
+  local opts = { noremap = true, silent = true, buffer = buf }
+  
+  vim.keymap.set("n", "q", function() M.close() end, opts)
+  vim.keymap.set("n", "<Esc>", function() M.close() end, opts)
+  vim.keymap.set("n", "<CR>", function() M.open_selection() end, opts)
+  vim.keymap.set("n", "l", function() M.open_selection() end, opts)
+  vim.keymap.set("n", "h", function() M.go_parent() end, opts)
+  vim.keymap.set("n", "j", function() M.move_cursor(1) end, opts)
+  vim.keymap.set("n", "k", function() M.move_cursor(-1) end, opts)
+  vim.keymap.set("n", ".", function() M.toggle_hidden() end, opts)
+  vim.keymap.set("n", "i", function() M.toggle_icons() end, opts)
+  vim.keymap.set("n", "~", function() M.go_home() end, opts)
+  vim.keymap.set("n", "/", function() M.search() end, opts)
+  vim.keymap.set("n", "?", function() M.show_help() end, opts)
+end
+
+function M.open_selection()
+  local line = api.nvim_win_get_cursor(M.state.win)[1]
+  local file = M.state.files[line]
+  if not file then return end
+  
+  if file.type == "directory" then
+    M.state.current_dir = file.path
+    M.refresh()
+  else
+    M.close()
+    vim.cmd("edit " .. fn.fnameescape(file.path))
+  end
+end
+
+function M.go_parent()
+  local parent = fn.fnamemodify(M.state.current_dir, ":h")
+  if parent ~= M.state.current_dir then
+    M.state.current_dir = parent
+    M.refresh()
+  end
+end
+
+function M.move_cursor(direction)
+  local current_line = api.nvim_win_get_cursor(M.state.win)[1]
+  local new_line = current_line + direction
+  local line_count = api.nvim_buf_line_count(M.state.buf)
+  
+  if new_line >= 1 and new_line <= line_count then
+    api.nvim_win_set_cursor(M.state.win, {new_line, 0})
+  end
+end
+
+function M.refresh()
+  if not M.state.buf or not api.nvim_buf_is_valid(M.state.buf) then
+    return
+  end
+  
+  M.state.files = get_files(M.state.current_dir)
+  render_files(M.state.buf, M.state.files)
+  
+  local title = " Feather: " .. fn.fnamemodify(M.state.current_dir, ":~") .. " "
+  api.nvim_win_set_config(M.state.win, { title = title })
+  
+  api.nvim_win_set_cursor(M.state.win, {1, 0})
+end
+
+function M.open()
+  if M.state.win and api.nvim_win_is_valid(M.state.win) then
+    return
+  end
+  
+  M.state.current_dir = fn.getcwd()
+  M.state.buf, M.state.win = create_float_window()
+  
+  api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
+  api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
+  api.nvim_buf_set_option(M.state.buf, "modifiable", false)
+  api.nvim_win_set_option(M.state.win, "cursorline", true)
+  
+  setup_keymaps(M.state.buf)
+  M.refresh()
+  
+  api.nvim_buf_set_option(M.state.buf, "modifiable", true)
+  api.nvim_buf_set_option(M.state.buf, "modifiable", false)
+end
+
+function M.close()
+  if M.state.win and api.nvim_win_is_valid(M.state.win) then
+    api.nvim_win_close(M.state.win, true)
+  end
+  M.state.buf = nil
+  M.state.win = nil
+end
+
+function M.toggle()
+  if M.state.win and api.nvim_win_is_valid(M.state.win) then
+    M.close()
+  else
+    M.open()
+  end
+end
+
+function M.toggle_hidden()
+  M.state.show_hidden = not M.state.show_hidden
+  M.refresh()
+end
+
+function M.toggle_icons()
+  M.state.use_icons = not M.state.use_icons
+  M.refresh()
+end
+
+function M.go_home()
+  M.state.current_dir = vim.fn.expand("~")
+  M.refresh()
+end
+
+function M.search()
+  vim.ui.input({ prompt = "Search: " }, function(input)
+    if input and input ~= "" then
+      for i, file in ipairs(M.state.files) do
+        if file.name:lower():find(input:lower(), 1, true) then
+          api.nvim_win_set_cursor(M.state.win, {i, 0})
+          break
+        end
+      end
+    end
+  end)
+end
+
+function M.show_help()
+  local help_text = {
+    "Feather.nvim Help",
+    "",
+    "Navigation:",
+    "  j/k     - Move cursor down/up",
+    "  h       - Go to parent directory", 
+    "  l/<CR>  - Open file/directory",
+    "  ~       - Go to home directory",
+    "",
+    "Features:",
+    "  .       - Toggle hidden files",
+    "  i       - Toggle icons",
+    "  /       - Search files",
+    "  ?       - Show this help",
+    "",
+    "Exit:",
+    "  q/<Esc> - Close Feather",
+  }
+  
+  vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, { title = "Feather Help" })
+end
+
+return M

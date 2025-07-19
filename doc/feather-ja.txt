@@ -1,0 +1,209 @@
+*feather-ja.txt*  Neovim用の軽量なフローティングウィンドウ型ファイルエクスプローラー
+
+作者: TrsNium
+ライセンス: MIT
+
+==============================================================================
+目次                                                      *feather-ja-contents*
+
+1. はじめに .................................... |feather-ja-introduction|
+2. インストール ................................ |feather-ja-installation|
+3. 使い方 ...................................... |feather-ja-usage|
+4. コマンド .................................... |feather-ja-commands|
+5. キーマッピング .............................. |feather-ja-mappings|
+6. 設定 ........................................ |feather-ja-configuration|
+7. 関数 ........................................ |feather-ja-functions|
+8. 更新履歴 .................................... |feather-ja-changelog|
+
+==============================================================================
+1. はじめに                                           *feather-ja-introduction*
+
+Feather.nvimは、フローティングウィンドウで動作するNeovim用の軽量なファイル
+エクスプローラープラグインです。rnvimrとNERDTreeにインスパイアされ、モダン
+で高速なファイルブラウジング体験を提供します。
+
+機能:
+- フローティングウィンドウでファイルとディレクトリをブラウズ
+- ファイルタイプ別のアイコン表示（Nerd Font必須）
+- クイックファイル検索機能
+- 隠しファイルの表示切り替え
+- カスタマイズ可能なキーマッピングと外観
+- 軽量で高速なパフォーマンス
+
+==============================================================================
+2. インストール                                       *feather-ja-installation*
+
+lazy.nvimを使用する場合:
+>lua
+    {
+      "takuya.hirata.002/feather.nvim",
+      config = function()
+        require("feather").setup({
+          -- あなたの設定
+        })
+      end,
+    }
+<
+
+packer.nvimを使用する場合:
+>lua
+    use {
+      "takuya.hirata.002/feather.nvim",
+      config = function()
+        require("feather").setup({
+          -- あなたの設定
+        })
+      end
+    }
+<
+
+必要要件:
+- Neovim 0.7.0以上
+- アイコン表示用のNerd Font（オプションだが推奨）
+
+==============================================================================
+3. 使い方                                                     *feather-ja-usage*
+
+ファイルエクスプローラーを開くには、`:Feather` コマンドを使用するか、
+`require("feather").toggle()` 関数を呼び出します。
+
+基本的なワークフロー:
+1. `:Feather` でFeatherを開く
+2. j/kキーで移動
+3. lまたは<CR>でディレクトリに入る
+4. hで戻る
+5. <CR>でファイルを開く
+6. qまたは<Esc>で閉じる
+
+==============================================================================
+4. コマンド                                               *feather-ja-commands*
+
+:Feather                                                         *:Feather-ja*
+    ファイルエクスプローラーウィンドウを切り替えます。開いている場合は
+    閉じ、閉じている場合は開きます。
+
+:FeatherOpen                                                 *:FeatherOpen-ja*
+    ファイルエクスプローラーウィンドウを開きます。既に開いている場合は
+    何もしません。
+
+:FeatherClose                                               *:FeatherClose-ja*
+    ファイルエクスプローラーウィンドウを閉じます。既に閉じている場合は
+    何もしません。
+
+==============================================================================
+5. キーマッピング                                         *feather-ja-mappings*
+
+Featherウィンドウ内のデフォルトキーマッピング:
+
+ナビゲーション:
+    j         カーソルを下に移動
+    k         カーソルを上に移動
+    h         親ディレクトリに移動
+    l, <CR>   ファイルを開くまたはディレクトリに入る
+    ~         ホームディレクトリに移動
+
+機能:
+    .         隠しファイルの表示を切り替え
+    i         アイコン表示を切り替え
+    /         ファイル検索（大文字小文字を区別しない）
+    ?         ヘルプを表示
+
+ウィンドウ:
+    q, <Esc>  ファイルエクスプローラーを閉じる
+
+==============================================================================
+6. 設定                                             *feather-ja-configuration*
+
+Featherはsetup関数にオプションを渡すことで設定できます:
+
+>lua
+    require("feather").setup({
+      window = {
+        width = 0.8,      -- ウィンドウ幅（0-1でパーセンテージ）
+        height = 0.8,     -- ウィンドウ高さ（0-1でパーセンテージ）
+        border = "rounded", -- ボーダースタイル
+        position = "center", -- ウィンドウ位置
+      },
+      icons = {
+        enabled = true,   -- ファイルアイコンを有効化
+        folder = "",     -- フォルダアイコン
+        default_file = "", -- デフォルトファイルアイコン
+      },
+      features = {
+        show_hidden = false, -- デフォルトで隠しファイルを表示
+        auto_close = true,   -- ファイルを開いたら自動で閉じる
+      },
+      keymaps = {
+        quit = { "q", "<Esc>" },
+        open = { "<CR>", "l" },
+        parent = { "h" },
+        down = { "j" },
+        up = { "k" },
+        toggle_hidden = { "." },
+        toggle_icons = { "i" },
+        home = { "~" },
+        search = { "/" },
+        help = { "?" },
+      },
+    })
+<
+
+オプション:
+
+window.width                                         *feather-ja-window.width*
+    型: number (0-1)
+    デフォルト: 0.8
+    画面に対するフローティングウィンドウの幅の割合。
+
+window.height                                       *feather-ja-window.height*
+    型: number (0-1)
+    デフォルト: 0.8
+    画面に対するフローティングウィンドウの高さの割合。
+
+window.border                                       *feather-ja-window.border*
+    型: string
+    デフォルト: "rounded"
+    ボーダースタイル。オプション: "none", "single", "double", "rounded",
+    "solid", "shadow"
+
+icons.enabled                                       *feather-ja-icons.enabled*
+    型: boolean
+    デフォルト: true
+    ファイルタイプアイコンを表示するかどうか。Nerd Fontが必要です。
+
+features.show_hidden                         *feather-ja-features.show_hidden*
+    型: boolean
+    デフォルト: false
+    デフォルトで隠しファイル（ドットファイル）を表示するかどうか。
+
+==============================================================================
+7. 関数                                                 *feather-ja-functions*
+
+require("feather").setup({opts})                          *feather-ja.setup()*
+    指定された設定オプションでプラグインをセットアップします。
+
+require("feather").toggle()                              *feather-ja.toggle()*
+    ファイルエクスプローラーウィンドウを切り替えます。
+
+require("feather").open()                                  *feather-ja.open()*
+    ファイルエクスプローラーウィンドウを開きます。
+
+require("feather").close()                                *feather-ja.close()*
+    ファイルエクスプローラーウィンドウを閉じます。
+
+require("feather").refresh()                            *feather-ja.refresh()*
+    現在のディレクトリリストを更新します。
+
+==============================================================================
+8. 更新履歴                                             *feather-ja-changelog*
+
+v1.0.0 (2025-01-19)
+    - 初回リリース
+    - 基本的なファイルブラウジング機能
+    - アイコンサポート
+    - 隠しファイルの切り替え
+    - ファイル検索
+    - カスタマイズ可能な設定
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

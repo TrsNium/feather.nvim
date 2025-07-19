@@ -1,0 +1,44 @@
+local M = {}
+
+M.defaults = {
+  window = {
+    width = 0.8,
+    height = 0.8,
+    border = "rounded",
+    position = "center",
+  },
+  icons = {
+    enabled = true,
+    folder = "",
+    default_file = "",
+  },
+  features = {
+    show_hidden = false,
+    auto_close = true,
+  },
+  keymaps = {
+    quit = { "q", "<Esc>" },
+    open = { "<CR>", "l" },
+    parent = { "h" },
+    down = { "j" },
+    up = { "k" },
+    toggle_hidden = { "." },
+    toggle_icons = { "i" },
+    home = { "~" },
+    search = { "/" },
+    help = { "?" },
+  },
+}
+
+M.options = {}
+
+function M.setup(opts)
+  M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
+  return M.options
+end
+
+function M.get()
+  return M.options
+end
+
+return M
