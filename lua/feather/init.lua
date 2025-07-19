@@ -315,6 +315,61 @@ function M.toggle()
   end
 end
 
+function M.open_current()
+  ensure_setup()
+  
+  -- Get current buffer's directory
+  local current_file = api.nvim_buf_get_name(0)
+  local current_dir
+  
+  if current_file and current_file ~= "" then
+    -- If it's a file, get its directory
+    current_dir = fn.fnamemodify(current_file, ":h")
+  else
+    -- If no file, use current working directory
+    current_dir = fn.getcwd()
+  end
+  
+  local cfg = config.get()
+  if cfg.features.split_view then
+    split_view.open_in_dir(current_dir)
+  else
+    M.open_in_dir(current_dir)
+  end
+end
+
+function M.open_in_dir(dir)
+  ensure_setup()
+  local cfg = config.get()
+  if cfg.features.split_view then
+    split_view.open_in_dir(dir)
+  else
+    if M.state.win and api.nvim_win_is_valid(M.state.win) then
+      return
+    end
+    
+    M.state.current_dir = dir
+    M.state.buf, M.state.win = create_float_window()
+    
+    api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
+    api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
+    api.nvim_buf_set_option(M.state.buf, "modifiable", false)
+    api.nvim_win_set_option(M.state.win, "cursorline", true)
+    api.nvim_win_set_option(M.state.win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
+    
+    setup_keymaps(M.state.buf)
+    M.refresh()
+    
+    -- Show preview if enabled
+    if M.state.preview_enabled and #M.state.files > 0 then
+      local file = M.state.files[1]
+      if file then
+        preview.show(file.path, M.state.win, "right")
+      end
+    end
+  end
+end
+
 function M.toggle_hidden()
   M.state.show_hidden = not M.state.show_hidden
   M.refresh()

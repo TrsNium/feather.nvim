@@ -438,6 +438,67 @@ function M.toggle()
   end
 end
 
+function M.open_in_dir(dir)
+  if M.state.container_win and api.nvim_win_is_valid(M.state.container_win) then
+    return
+  end
+  
+  local cfg = config.get()
+  local width = math.floor(vim.o.columns * cfg.window.width)
+  local height = math.floor(vim.o.lines * cfg.window.height)
+  local row = math.floor((vim.o.lines - height) / 2)
+  
+  -- Position window with left margin for better layout
+  local col = 5  -- 5-character left margin
+  
+  M.state.container_buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
+  api.nvim_buf_set_option(M.state.container_buf, "modifiable", false)
+  
+  M.state.container_win = api.nvim_open_win(M.state.container_buf, false, {  -- false to not enter
+    relative = "editor",
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = "minimal",
+    border = cfg.window.border,
+    title = " Feather ",
+    title_pos = "center",
+  })
+  
+  -- Set window highlight to match normal background
+  api.nvim_win_set_option(M.state.container_win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
+  
+  M.state.columns = {}
+  M.state.active_col = 1
+  
+  -- Add initial column with specified directory
+  add_column(dir)
+  
+  -- Setup keymaps for all columns
+  for i, col in ipairs(M.state.columns) do
+    setup_column_keymaps(col.buf, i)
+  end
+  
+  -- Focus on the first column
+  update_column_highlights()
+  if M.state.columns[1] and api.nvim_win_is_valid(M.state.columns[1].win) then
+    api.nvim_set_current_win(M.state.columns[1].win)
+    -- Set buffer as modifiable to allow cursor movement
+    vim.cmd('setlocal modifiable')
+    vim.cmd('setlocal nomodifiable')
+    
+    -- Show preview if enabled and files exist
+    if M.state.preview_enabled and M.state.columns[1].files and #M.state.columns[1].files > 0 then
+      local file = M.state.columns[1].files[1]
+      if file then
+        preview.show(file.path, M.state.container_win, "right")
+      end
+    end
+  end
+end
+
 function M.toggle_hidden()
   M.state.show_hidden = not M.state.show_hidden
   
