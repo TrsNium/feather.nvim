@@ -48,6 +48,10 @@ function M.setup()
   vim.api.nvim_set_hl(0, "FeatherHidden", { link = "Comment" })
   vim.api.nvim_set_hl(0, "FeatherIcon", { link = "Function" })
   vim.api.nvim_set_hl(0, "FeatherCurrent", { link = "CursorLine" })
+  
+  -- Fix floating window background to match the normal background
+  vim.api.nvim_set_hl(0, "NormalFloat", { link = "Normal" })
+  vim.api.nvim_set_hl(0, "FloatBorder", { link = "Normal" })
 end
 
 -- Get highlight group for file type

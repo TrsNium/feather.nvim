@@ -247,7 +247,9 @@ function M.move_in_column(direction)
     if M.state.preview_enabled then
       local file = col.files[new_line]
       if file then
-        preview.update(file.path, M.state.container_win)
+        -- Use the last column window as parent for preview
+        local last_col = M.state.columns[#M.state.columns]
+        preview.update(file.path, last_col.win)
       end
     end
   end
@@ -263,6 +265,20 @@ function M.focus_column(direction)
   end
   
   if new_col >= 1 and new_col <= #M.state.columns then
+    -- If moving left, remove columns to the right
+    if direction < 0 then
+      for i = #M.state.columns, new_col + 1, -1 do
+        local c = M.state.columns[i]
+        if api.nvim_win_is_valid(c.win) then
+          api.nvim_win_close(c.win, true)
+        end
+        table.remove(M.state.columns, i)
+      end
+      
+      -- Resize remaining columns
+      resize_columns()
+    end
+    
     M.state.active_col = new_col
     update_column_highlights()
     api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
@@ -326,6 +342,9 @@ function M.open()
     title = " Feather ",
     title_pos = "center",
   })
+  
+  -- Set window highlight to match normal background
+  api.nvim_win_set_option(M.state.container_win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
   
   M.state.columns = {}
   M.state.active_col = 1
@@ -433,7 +452,9 @@ function M.toggle_preview()
     local line = api.nvim_win_get_cursor(col.win)[1]
     local file = col.files[line]
     if file then
-      preview.show(file.path, M.state.container_win, "auto")
+      -- Use the last column window as parent for preview
+      local last_col = M.state.columns[#M.state.columns]
+      preview.show(file.path, last_col.win, "right")
     end
   else
     preview.close()

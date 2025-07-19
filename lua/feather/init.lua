@@ -247,6 +247,7 @@ function M.open()
     api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
     api.nvim_buf_set_option(M.state.buf, "modifiable", false)
     api.nvim_win_set_option(M.state.win, "cursorline", true)
+    api.nvim_win_set_option(M.state.win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
     
     setup_keymaps(M.state.buf)
     M.refresh()

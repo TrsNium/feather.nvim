@@ -181,6 +181,12 @@ function M.show(filepath, parent_win, position)
     return
   end
   
+  -- Validate parent window
+  if not parent_win or not api.nvim_win_is_valid(parent_win) then
+    vim.notify("Preview: Invalid parent window", vim.log.levels.ERROR)
+    return
+  end
+  
   -- Create preview buffer
   M.state.buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
@@ -189,8 +195,8 @@ function M.show(filepath, parent_win, position)
   
   -- Calculate window position
   local win_config = api.nvim_win_get_config(parent_win)
-  local parent_width = win_config.width
-  local parent_height = win_config.height
+  local parent_width = win_config.width or api.nvim_win_get_width(parent_win)
+  local parent_height = win_config.height or api.nvim_win_get_height(parent_win)
   
   -- Get actual screen dimensions
   local screen_width = vim.o.columns
@@ -249,6 +255,9 @@ function M.show(filepath, parent_win, position)
     title = " Preview ",
     title_pos = "center",
   })
+  
+  -- Set window highlight to match normal background
+  api.nvim_win_set_option(M.state.win, "winhighlight", "Normal:Normal,NormalFloat:Normal,FloatBorder:Normal")
   
   -- Set window options
   api.nvim_win_set_option(M.state.win, "cursorline", false)
