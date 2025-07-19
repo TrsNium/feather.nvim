@@ -304,7 +304,7 @@ function M.toggle_preview()
     local line = api.nvim_win_get_cursor(M.state.win)[1]
     local file = M.state.files[line]
     if file then
-      preview.show(file.path, M.state.win, "right")
+      preview.show(file.path, M.state.win, "auto")
     end
   else
     preview.close()

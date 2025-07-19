@@ -189,19 +189,51 @@ function M.show(filepath, parent_win, position)
   
   -- Calculate window position
   local win_config = api.nvim_win_get_config(parent_win)
-  local width = math.floor(win_config.width * 0.5)
-  local height = win_config.height - 2
+  local parent_width = win_config.width
+  local parent_height = win_config.height
   
-  local row = 1
-  local col = win_config.width + 1
+  -- Get actual screen dimensions
+  local screen_width = vim.o.columns
+  local screen_height = vim.o.lines
+  
+  -- Calculate available space
+  local space_right = screen_width - (win_config.col[false] + parent_width)
+  local space_bottom = screen_height - (win_config.row[false] + parent_height)
+  
+  local width, height, row, col
+  
+  -- Determine best position based on available space
+  if position == "auto" or not position then
+    -- If parent window is narrow or not enough space on right, use bottom
+    if parent_width < 60 or space_right < 40 then
+      position = "bottom"
+    else
+      position = "right"
+    end
+  end
   
   if position == "right" then
-    -- Default
-  elseif position == "bottom" then
-    row = win_config.height + 1
+    width = math.min(math.floor(parent_width * 0.5), space_right - 2)
+    height = parent_height - 2
+    row = 1
+    col = parent_width + 1
+    
+    -- If preview would be too narrow, switch to bottom
+    if width < 30 then
+      position = "bottom"
+    end
+  end
+  
+  if position == "bottom" then
+    width = parent_width
+    height = math.min(math.floor(parent_height * 0.4), space_bottom - 2, 15)
+    row = parent_height + 1
     col = 0
-    width = win_config.width
-    height = math.floor(vim.o.lines * 0.3)
+    
+    -- If not enough space at bottom, don't show preview
+    if height < 5 then
+      return
+    end
   end
   
   -- Create preview window
@@ -254,7 +286,7 @@ end
 
 function M.update(filepath, parent_win)
   if filepath ~= M.state.current_file then
-    M.show(filepath, parent_win, "right")
+    M.show(filepath, parent_win, "auto")
   end
 end
 
@@ -262,7 +294,7 @@ function M.toggle(filepath, parent_win)
   if M.state.win and api.nvim_win_is_valid(M.state.win) then
     M.close()
   else
-    M.show(filepath, parent_win, "right")
+    M.show(filepath, parent_win, "auto")
   end
 end
 

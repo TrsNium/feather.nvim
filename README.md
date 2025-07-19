@@ -99,6 +99,13 @@ require("feather").setup({
     split_view = false,  -- Enable split view mode
     max_columns = 4,     -- Maximum columns in split view
   },
+  preview = {
+    enabled = false,      -- Enable preview by default
+    position = "auto",    -- "auto", "right", "bottom"
+    max_lines = 100,      -- Maximum lines to show in preview
+    min_width = 30,       -- Minimum width for preview window
+    min_height = 5,       -- Minimum height for preview window
+  },
   keymaps = {
     quit = { "q", "<Esc>" },
     open = { "<CR>", "l" },
