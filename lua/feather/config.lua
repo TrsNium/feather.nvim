@@ -22,6 +22,7 @@ M.defaults = {
   preview = {
     enabled = true,      -- Enable preview by default
     position = "auto",    -- "auto", "right", "bottom"
+    border = "single",    -- Border style for preview window
     max_lines = 100,      -- Maximum lines to show in preview
     min_width = 30,       -- Minimum width for preview window
     min_height = 5,       -- Minimum height for preview window

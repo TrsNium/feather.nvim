@@ -277,6 +277,10 @@ function M.show(filepath, parent_win, position)
     end
   end
   
+  -- Get border setting from config
+  local config = require("feather.config")
+  local cfg = config.get()
+  
   -- Create preview window positioned relative to editor
   M.state.win = api.nvim_open_win(M.state.buf, false, {
     relative = "editor",
@@ -285,7 +289,7 @@ function M.show(filepath, parent_win, position)
     row = preview_row,
     col = preview_col,
     style = "minimal",
-    border = "single",
+    border = cfg.preview.border,
     title = " Preview ",
     title_pos = "center",
   })
