@@ -164,7 +164,7 @@ local function add_column(dir)
   if #M.state.columns >= M.state.max_columns then
     -- Remove first column
     local first_col = table.remove(M.state.columns, 1)
-    if api.nvim_win_is_valid(first_col.win) then
+    if first_col.win and api.nvim_win_is_valid(first_col.win) then
       api.nvim_win_close(first_col.win, true)
     end
   end
@@ -174,7 +174,7 @@ local function add_column(dir)
   
   -- Recalculate all column positions
   for i, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win) then
+    if col.win and api.nvim_win_is_valid(col.win) then
       api.nvim_win_close(col.win, true)
     end
   end
@@ -292,7 +292,7 @@ function M.focus_column(direction)
       local container_height = api.nvim_win_get_height(M.state.container_win)
       
       for i, col in ipairs(M.state.columns) do
-        if api.nvim_win_is_valid(col.win) then
+        if col.win and api.nvim_win_is_valid(col.win) then
           api.nvim_win_close(col.win, true)
         end
         
@@ -415,7 +415,7 @@ function M.close()
   preview.close()
   
   for _, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win) then
+    if col.win and api.nvim_win_is_valid(col.win) then
       api.nvim_win_close(col.win, true)
     end
   end
@@ -518,7 +518,7 @@ function M.toggle_column_separator()
   
   for i, col in ipairs(M.state.columns) do
     -- Close old window
-    if api.nvim_win_is_valid(col.win) then
+    if col.win and api.nvim_win_is_valid(col.win) then
       api.nvim_win_close(col.win, true)
     end
     
@@ -623,7 +623,7 @@ function M.go_parent()
   local container_height = api.nvim_win_get_height(M.state.container_win)
   
   for i, col in ipairs(M.state.columns) do
-    if api.nvim_win_is_valid(col.win or 0) then
+    if col.win and api.nvim_win_is_valid(col.win) then
       api.nvim_win_close(col.win, true)
     end
     
