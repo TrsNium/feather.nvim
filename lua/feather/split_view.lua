@@ -104,6 +104,9 @@ local function create_column_window(parent_win, col_index, total_cols, container
   return buf, win
 end
 
+-- Forward declarations
+local setup_column_keymaps
+
 local function update_column_highlights()
   for i, col in ipairs(M.state.columns) do
     if api.nvim_win_is_valid(col.win) then
@@ -179,7 +182,7 @@ local function add_column(dir)
   api.nvim_set_current_win(M.state.columns[M.state.active_col].win)
 end
 
-local function setup_column_keymaps(buf, col_index)
+setup_column_keymaps = function(buf, col_index)
   local opts = { noremap = true, silent = true, buffer = buf }
   
   vim.keymap.set("n", "j", function() M.move_in_column(1) end, opts)
