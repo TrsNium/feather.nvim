@@ -492,6 +492,12 @@ function M.setup(opts)
   end
   M.state.show_hidden = opts.show_hidden or false
   M.state.use_icons = opts.use_icons == nil and true or opts.use_icons
+  
+  -- Setup highlights if not already done
+  local has_highlights = pcall(require, "feather.highlights")
+  if has_highlights then
+    require("feather.highlights").setup()
+  end
 end
 
 return M

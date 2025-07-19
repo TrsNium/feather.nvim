@@ -1,5 +1,17 @@
 local M = {}
 
+function M.check_config()
+  local config = require("feather.config").get()
+  print("=== Feather.nvim Config Debug ===")
+  print("Split view enabled: " .. tostring(config.features.split_view))
+  print("Icons enabled: " .. tostring(config.icons.enabled))
+  print("Show hidden: " .. tostring(config.features.show_hidden))
+  print("Max columns: " .. tostring(config.features.max_columns))
+  print("")
+  print("Full config:")
+  print(vim.inspect(config))
+end
+
 function M.check_icon_support()
   local icons = require("feather.icons")
   local test_icon = icons.folder_icon

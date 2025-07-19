@@ -223,6 +223,8 @@ end
 function M.open()
   ensure_setup()
   local cfg = config.get()
+  -- Debug: print current config
+  -- vim.notify("Split view enabled: " .. tostring(cfg.features.split_view), vim.log.levels.INFO)
   if cfg.features.split_view then
     split_view.open()
   else
