@@ -159,9 +159,9 @@ local function create_float_window()
   local height = math.floor(vim.o.lines * cfg.window.height)
   local row = math.floor((vim.o.lines - height) / 2)
   
-  -- Position window to the left to make room for preview
+  -- Position window to the left for 5:5 ratio with preview
   local total_space = vim.o.columns - width
-  local col = math.floor(total_space * 0.2)  -- 20% margin on left, 80% for preview space
+  local col = math.floor(total_space * 0.1)  -- 10% margin on left, leave space for preview
   
   local buf = api.nvim_create_buf(false, true)
   local win = api.nvim_open_win(buf, true, {

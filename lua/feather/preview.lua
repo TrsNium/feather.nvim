@@ -250,8 +250,8 @@ function M.show(filepath, parent_win, position)
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
-  -- Calculate preview dimensions (40% of container width)
-  local preview_width = math.floor(container_width * 0.4)
+  -- Calculate preview dimensions (50% of container width for 5:5 ratio)
+  local preview_width = math.floor(container_width * 0.5)
   local preview_height = container_height
   
   -- Ensure minimum preview width
@@ -298,7 +298,7 @@ function M.show(filepath, parent_win, position)
   
   -- Set window options
   api.nvim_win_set_option(M.state.win, "cursorline", false)
-  api.nvim_win_set_option(M.state.win, "number", true)
+  api.nvim_win_set_option(M.state.win, "number", false)
   api.nvim_win_set_option(M.state.win, "relativenumber", false)
   api.nvim_win_set_option(M.state.win, "wrap", true)
   api.nvim_win_set_option(M.state.win, "winhl", "Normal:Normal,FloatBorder:FloatBorder")
