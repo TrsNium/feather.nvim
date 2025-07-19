@@ -204,4 +204,4 @@ v1.0.0 (2025-01-19)
     - Customizable configuration
 
 ==============================================================================
-vim:tw=78:ts=8:ft=help:norl:
+vim:tw=78:ts=8:ft=help:norl:fileencoding=utf-8:
