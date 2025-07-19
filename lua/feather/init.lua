@@ -172,7 +172,7 @@ local function create_float_window()
     style = "minimal",
     border = cfg.window.border,
     title = " Feather ",
-    title_pos = "center",
+    title_pos = "right",
   })
   
   return buf, win
@@ -247,7 +247,7 @@ function M.refresh()
   render_files(M.state.buf, M.state.files)
   
   local title = " Feather: " .. fn.fnamemodify(M.state.current_dir, ":~") .. " "
-  api.nvim_win_set_config(M.state.win, { title = title })
+  api.nvim_win_set_config(M.state.win, { title = title, title_pos = "right" })
   
   api.nvim_win_set_cursor(M.state.win, {1, 0})
 end
