@@ -252,8 +252,8 @@ function M.show(filepath, parent_win, position)
   
   -- Calculate preview width to fill remaining space after container + margins
   local screen_center = math.floor(screen_width / 2)
-  local center_gap = 2  -- Smaller gap between file tree and preview
-  local right_margin = 8  -- Larger right margin
+  local center_gap = 1  -- Minimal gap between file tree and preview
+  local right_margin = 10  -- 10-character right margin
   local preview_width = screen_width - screen_center - center_gap - right_margin
   local preview_height = container_height
   
@@ -262,7 +262,7 @@ function M.show(filepath, parent_win, position)
     preview_width = 40
   end
   
-  -- Position preview closer to center with smaller gap
+  -- Position preview closer to center with minimal gap
   local preview_col = screen_center + center_gap
   local preview_row = container_row
   
