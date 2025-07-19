@@ -263,10 +263,11 @@ function M.show(filepath, parent_win, position)
   local preview_col = container_col + container_width + 5
   local preview_row = container_row
   
-  -- Check if preview would go off-screen
-  if preview_col + preview_width > screen_width then
-    -- If going off-screen, adjust width to fit exactly
-    preview_width = screen_width - preview_col
+  -- Check if preview would go off-screen (preserving right margin)
+  local right_margin = 5
+  if preview_col + preview_width + right_margin > screen_width then
+    -- If going off-screen, adjust width to fit with right margin
+    preview_width = screen_width - preview_col - right_margin
     
     -- If still too narrow, don't show preview
     if preview_width < 30 then
