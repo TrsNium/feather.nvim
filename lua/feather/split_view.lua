@@ -382,7 +382,7 @@ function M.open()
   local row = math.floor((vim.o.lines - height) / 2)
   
   -- Position window with left margin for better layout
-  local col = 5  -- 5-character left margin
+  local col = 8  -- 8-character left margin
   
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
@@ -471,7 +471,7 @@ function M.open_in_dir(dir)
   local row = math.floor((vim.o.lines - height) / 2)
   
   -- Position window with left margin for better layout
-  local col = 5  -- 5-character left margin
+  local col = 8  -- 8-character left margin
   
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
