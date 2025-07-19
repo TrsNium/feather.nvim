@@ -18,16 +18,24 @@ M.state = {
   preview_enabled = false,
 }
 
+-- Store whether user has called setup
+M._user_setup_done = false
+
 function M.setup(opts)
   opts = opts or {}
-  M._setup_done = true  -- Mark as setup immediately
+  
+  -- Debug: Show what options were passed
+  if vim.tbl_count(opts) > 0 then
+    vim.notify("Feather.setup called with options: " .. vim.inspect(opts.features), vim.log.levels.INFO)
+    M._user_setup_done = true
+  else
+    vim.notify("Feather.setup called with empty options (auto-setup)", vim.log.levels.WARN)
+  end
+  
   config.setup(opts)
   local cfg = config.get()
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
-  
-  -- Debug output to verify setup is called with correct options
-  -- vim.notify("Feather.setup called with split_view = " .. tostring(cfg.features.split_view), vim.log.levels.INFO)
   
   -- Check if nvim-web-devicons is available
   local has_devicons, devicons = pcall(require, "nvim-web-devicons")
@@ -46,9 +54,9 @@ function M.setup(opts)
   })
 end
 
--- Auto-setup with defaults if not already setup
+-- Auto-setup with defaults if not already setup by user
 local function ensure_setup()
-  if not M._setup_done then
+  if not M._user_setup_done then
     -- Debug: print when auto-setup is called
     -- vim.notify("Feather: Auto-setup with defaults", vim.log.levels.WARN)
     M.setup({})

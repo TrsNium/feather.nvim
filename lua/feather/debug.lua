@@ -10,7 +10,7 @@ function M.check_config()
   
   -- Also check if setup was called
   local feather = require('feather')
-  print("Setup done: " .. tostring(feather._setup_done or false))
+  print("User setup done: " .. tostring(feather._user_setup_done or false))
   
   print("\nFull config:")
   print(vim.inspect(config))
