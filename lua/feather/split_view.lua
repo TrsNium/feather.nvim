@@ -141,7 +141,7 @@ local function update_title()
     local col = M.state.columns[M.state.active_col]
     if col then
       local title = " Feather - " .. fn.fnamemodify(col.dir, ":~") .. " "
-      api.nvim_win_set_config(M.state.container_win, { title = title, title_pos = "right" })
+      api.nvim_win_set_config(M.state.container_win, { title = title, title_pos = "center" })
     end
   end
 end
@@ -375,7 +375,7 @@ function M.open()
     style = "minimal",
     border = cfg.window.border,
     title = " Feather ",
-    title_pos = "right",
+    title_pos = "center",
   })
   
   -- Set window highlight to match normal background

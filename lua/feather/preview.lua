@@ -287,7 +287,7 @@ function M.show(filepath, parent_win, position)
     style = "minimal",
     border = "single",
     title = " Preview ",
-    title_pos = "right",
+    title_pos = "center",
   })
   
   -- Set window highlight to match normal background
