@@ -25,6 +25,12 @@ function M.setup(opts)
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
   
+  -- Check if nvim-web-devicons is available
+  local has_devicons, devicons = pcall(require, "nvim-web-devicons")
+  if has_devicons and M.state.use_icons then
+    devicons.setup()
+  end
+  
   -- Setup highlights
   highlights.setup()
   
