@@ -360,8 +360,7 @@ function M.open()
   local row = math.floor((vim.o.lines - height) / 2)
   
   -- Position window to the left for 5:5 ratio with preview
-  local total_space = vim.o.columns - width
-  local col = math.floor(total_space * 0.1)  -- 10% margin on left, leave space for preview
+  local col = 0  -- Start at left edge for true 5:5 split
   
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")

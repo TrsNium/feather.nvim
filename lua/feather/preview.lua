@@ -259,8 +259,8 @@ function M.show(filepath, parent_win, position)
     preview_width = 40
   end
   
-  -- Position preview to the right of the container window
-  local preview_col = container_col + container_width + 2
+  -- Position preview to the right of the container window (no gap for 5:5 split)
+  local preview_col = container_col + container_width
   local preview_row = container_row
   
   -- Check if preview would go off-screen

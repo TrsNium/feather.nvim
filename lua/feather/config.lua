@@ -2,7 +2,7 @@ local M = {}
 
 M.defaults = {
   window = {
-    width = 0.8,
+    width = 0.5,  -- 50% width for 5:5 ratio with preview
     height = 0.8,
     border = "rounded",
     position = "center",
@@ -17,7 +17,7 @@ M.defaults = {
     auto_close = true,
     split_view = false,  -- Use split view mode
     max_columns = 4,     -- Maximum columns in split view
-    column_separator = true,  -- Show vertical separator between columns
+    column_separator = false,  -- Show vertical separator between columns
   },
   preview = {
     enabled = true,      -- Enable preview by default
