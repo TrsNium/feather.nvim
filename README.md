@@ -193,6 +193,7 @@ vim.keymap.set("n", "<leader>fe", "<cmd>FeatherCurrent<cr>", { desc = "Feather i
 ```
 [Parent] | [Current] | [Child] | [Preview]
 ```
+<img width="940" height="925" alt="スクリーンショット 2025-07-20 3 34 52" src="https://github.com/user-attachments/assets/04eb4238-a2d0-400d-9b17-72e9c4fb9fd1" />
 
 - Miller column style navigation
 - Up to 4 columns for deep directory exploration
