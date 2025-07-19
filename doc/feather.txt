@@ -29,6 +29,8 @@ Features:
 - Toggle hidden files visibility
 - Customizable key mappings and appearance
 - Lightweight and fast performance
+- File preview without opening
+- Split view mode for directory hierarchy
 
 ==============================================================================
 2. INSTALLATION                                          *feather-installation*
@@ -103,8 +105,13 @@ Navigation:
 Features:
     .         Toggle hidden files visibility
     i         Toggle icon display
+    p         Toggle file preview
     /         Search for files (case-insensitive)
     ?         Show help
+
+Preview:
+    <C-d>     Scroll preview down
+    <C-u>     Scroll preview up
 
 Window:
     q, <Esc>  Close the file explorer

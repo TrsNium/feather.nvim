@@ -4,6 +4,7 @@ local fn = vim.fn
 local icons = require("feather.icons")
 local config = require("feather.config")
 local split_view = require("feather.split_view")
+local preview = require("feather.preview")
 
 M.state = {
   buf = nil,
@@ -13,6 +14,7 @@ M.state = {
   selected_line = 1,
   show_hidden = false,
   use_icons = true,
+  preview_enabled = false,
 }
 
 function M.setup(opts)
@@ -126,6 +128,9 @@ local function setup_keymaps(buf)
   vim.keymap.set("n", "~", function() M.go_home() end, opts)
   vim.keymap.set("n", "/", function() M.search() end, opts)
   vim.keymap.set("n", "?", function() M.show_help() end, opts)
+  vim.keymap.set("n", "p", function() M.toggle_preview() end, opts)
+  vim.keymap.set("n", "<C-d>", function() M.preview_scroll(10) end, opts)
+  vim.keymap.set("n", "<C-u>", function() M.preview_scroll(-10) end, opts)
 end
 
 function M.open_selection()
@@ -157,6 +162,14 @@ function M.move_cursor(direction)
   
   if new_line >= 1 and new_line <= line_count then
     api.nvim_win_set_cursor(M.state.win, {new_line, 0})
+    
+    -- Update preview if enabled
+    if M.state.preview_enabled then
+      local file = M.state.files[new_line]
+      if file then
+        preview.update(file.path, M.state.win)
+      end
+    end
   end
 end
 
@@ -201,11 +214,13 @@ function M.close()
   if cfg.features.split_view then
     split_view.close()
   else
+    preview.close()  -- Close preview window
     if M.state.win and api.nvim_win_is_valid(M.state.win) then
       api.nvim_win_close(M.state.win, true)
     end
     M.state.buf = nil
     M.state.win = nil
+    M.state.preview_enabled = false
   end
 end
 
@@ -263,14 +278,43 @@ function M.show_help()
     "Features:",
     "  .       - Toggle hidden files",
     "  i       - Toggle icons",
+    "  p       - Toggle file preview",
     "  /       - Search files",
     "  ?       - Show this help",
+    "",
+    "Preview:",
+    "  <C-d>   - Scroll preview down",
+    "  <C-u>   - Scroll preview up",
     "",
     "Exit:",
     "  q/<Esc> - Close Feather",
   }
   
   vim.notify(table.concat(help_text, "\n"), vim.log.levels.INFO, { title = "Feather Help" })
+end
+
+function M.toggle_preview()
+  if not M.state.win or not api.nvim_win_is_valid(M.state.win) then
+    return
+  end
+  
+  M.state.preview_enabled = not M.state.preview_enabled
+  
+  if M.state.preview_enabled then
+    local line = api.nvim_win_get_cursor(M.state.win)[1]
+    local file = M.state.files[line]
+    if file then
+      preview.show(file.path, M.state.win, "right")
+    end
+  else
+    preview.close()
+  end
+end
+
+function M.preview_scroll(lines)
+  if M.state.preview_enabled then
+    preview.scroll(lines)
+  end
 end
 
 return M

@@ -11,6 +11,7 @@ A lightweight file explorer for Neovim with floating window support, inspired by
 - ⚡ Fast and lightweight
 - 🎹 Intuitive key mappings
 - 🔲 Split view mode - see multiple directories at once
+- 👁️ File preview - preview files without opening them
 
 ## Installation
 
@@ -59,8 +60,11 @@ use {
 | `~` | Go to home directory |
 | `.` | Toggle hidden files |
 | `i` | Toggle icons |
+| `p` | Toggle file preview |
 | `/` | Search files |
 | `?` | Show help |
+| `<C-d>` | Scroll preview down |
+| `<C-u>` | Scroll preview up |
 | `q`/`<Esc>` | Close Feather |
 
 #### Split View Mode
@@ -103,6 +107,9 @@ require("feather").setup({
     up = { "k" },
     toggle_hidden = { "." },
     toggle_icons = { "i" },
+    toggle_preview = { "p" },
+    preview_scroll_down = { "<C-d>" },
+    preview_scroll_up = { "<C-u>" },
     home = { "~" },
     search = { "/" },
     help = { "?" },
