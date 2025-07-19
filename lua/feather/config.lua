@@ -2,7 +2,7 @@ local M = {}
 
 M.defaults = {
   window = {
-    width = 0.35,  -- 35% width to prevent overlap with preview
+    width = 0.42,  -- 42% width for better center split
     height = 0.8,
     border = "rounded",
     position = "center",

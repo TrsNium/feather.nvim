@@ -250,20 +250,27 @@ function M.show(filepath, parent_win, position)
   local screen_width = vim.o.columns
   local screen_height = vim.o.lines
   
-  -- Calculate preview position based on container's actual end position
-  local left_margin = 10  -- Match the left margin used in split_view
+  -- Calculate preview position for center split layout
+  local screen_center = math.floor(screen_width / 2)
   local center_gap = 2  -- 2-character gap between file tree and preview  
   local right_margin = 10  -- 10-character right margin
   
-  -- Calculate where the file tree container actually ends
-  local container_end = container_col + container_width
-  local preview_col = container_end + center_gap
+  -- Position preview at screen center with gap
+  local preview_col = screen_center + center_gap
   local preview_width = screen_width - preview_col - right_margin
   local preview_height = container_height
   
-  -- Ensure minimum preview width
+  -- Ensure minimum preview width and prevent overlap
   if preview_width < 40 then
     preview_width = 40
+  end
+  
+  -- Check if file tree would overlap with preview start position
+  local container_end = container_col + container_width
+  if container_end > screen_center then
+    -- Adjust preview position to avoid overlap
+    preview_col = container_end + center_gap
+    preview_width = screen_width - preview_col - right_margin
   end
   local preview_row = container_row
   
