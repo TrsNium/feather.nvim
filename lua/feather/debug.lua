@@ -7,9 +7,52 @@ function M.check_config()
   print("Icons enabled: " .. tostring(config.icons.enabled))
   print("Show hidden: " .. tostring(config.features.show_hidden))
   print("Max columns: " .. tostring(config.features.max_columns))
-  print("")
-  print("Full config:")
+  
+  -- Also check if setup was called
+  local feather = require('feather')
+  print("Setup done: " .. tostring(feather._setup_done or false))
+  
+  print("\nFull config:")
   print(vim.inspect(config))
+end
+
+function M.force_reload_and_setup()
+  -- Clear all cached modules
+  package.loaded['feather'] = nil
+  package.loaded['feather.config'] = nil
+  package.loaded['feather.split_view'] = nil
+  package.loaded['feather.preview'] = nil
+  package.loaded['feather.icons'] = nil
+  package.loaded['feather.highlights'] = nil
+  
+  -- Reload and setup with user config
+  local feather = require('feather')
+  local user_config = {
+    features = {
+      split_view = true,
+      show_hidden = true,
+      auto_close = true,
+      max_columns = 4,
+    },
+    -- Copy other settings from init.lua
+    window = {
+      width = 0.8,
+      height = 0.8,
+      border = "rounded",
+      position = "center",
+    },
+    icons = {
+      enabled = true,
+      folder = "",
+      default_file = "",
+    },
+  }
+  
+  feather.setup(user_config)
+  print("Feather reloaded with split_view = true")
+  
+  -- Check config after reload
+  M.check_config()
 end
 
 function M.check_icon_support()
