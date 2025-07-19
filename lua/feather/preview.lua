@@ -197,8 +197,8 @@ function M.show(filepath, parent_win, position)
   local screen_height = vim.o.lines
   
   -- Calculate available space
-  local space_right = screen_width - (win_config.col[false] + parent_width)
-  local space_bottom = screen_height - (win_config.row[false] + parent_height)
+  local space_right = screen_width - (win_config.col + parent_width)
+  local space_bottom = screen_height - (win_config.row + parent_height)
   
   local width, height, row, col
   
