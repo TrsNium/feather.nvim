@@ -359,8 +359,8 @@ function M.open()
   local height = math.floor(vim.o.lines * cfg.window.height)
   local row = math.floor((vim.o.lines - height) / 2)
   
-  -- Position window to the left for 5:5 ratio with preview
-  local col = 0  -- Start at left edge for true 5:5 split
+  -- Position window with left margin for better layout
+  local col = 5  -- 5-character left margin
   
   M.state.container_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(M.state.container_buf, "buftype", "nofile")
