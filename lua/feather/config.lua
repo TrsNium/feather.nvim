@@ -15,6 +15,8 @@ M.defaults = {
   features = {
     show_hidden = false,
     auto_close = true,
+    split_view = false,  -- Use split view mode
+    max_columns = 4,     -- Maximum columns in split view
   },
   keymaps = {
     quit = { "q", "<Esc>" },

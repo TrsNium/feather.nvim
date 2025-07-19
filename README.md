@@ -10,6 +10,7 @@ A lightweight file explorer for Neovim with floating window support, inspired by
 - 👻 Toggle hidden files visibility
 - ⚡ Fast and lightweight
 - 🎹 Intuitive key mappings
+- 🔲 Split view mode - see multiple directories at once
 
 ## Installation
 
@@ -49,6 +50,7 @@ use {
 
 ### Default Key Mappings
 
+#### Normal Mode
 | Key | Action |
 |-----|--------|
 | `j`/`k` | Navigate down/up |
@@ -58,6 +60,17 @@ use {
 | `.` | Toggle hidden files |
 | `i` | Toggle icons |
 | `/` | Search files |
+| `?` | Show help |
+| `q`/`<Esc>` | Close Feather |
+
+#### Split View Mode
+| Key | Action |
+|-----|--------|
+| `j`/`k` | Navigate down/up in current column |
+| `h` | Focus left column |
+| `l`/`<CR>` | Open directory in new column / Open file |
+| `.` | Toggle hidden files |
+| `i` | Toggle icons |
 | `?` | Show help |
 | `q`/`<Esc>` | Close Feather |
 
@@ -79,6 +92,8 @@ require("feather").setup({
   features = {
     show_hidden = false,
     auto_close = true,
+    split_view = false,  -- Enable split view mode
+    max_columns = 4,     -- Maximum columns in split view
   },
   keymaps = {
     quit = { "q", "<Esc>" },

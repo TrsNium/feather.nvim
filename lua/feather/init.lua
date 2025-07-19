@@ -3,6 +3,7 @@ local api = vim.api
 local fn = vim.fn
 local icons = require("feather.icons")
 local config = require("feather.config")
+local split_view = require("feather.split_view")
 
 M.state = {
   buf = nil,
@@ -19,6 +20,13 @@ function M.setup(opts)
   local cfg = config.get()
   M.state.show_hidden = cfg.features.show_hidden
   M.state.use_icons = cfg.icons.enabled
+  
+  -- Setup split view
+  split_view.setup({
+    show_hidden = cfg.features.show_hidden,
+    use_icons = cfg.icons.enabled,
+    max_columns = cfg.features.max_columns,
+  })
 end
 
 local function get_files(dir)
@@ -167,35 +175,50 @@ function M.refresh()
 end
 
 function M.open()
-  if M.state.win and api.nvim_win_is_valid(M.state.win) then
-    return
+  local cfg = config.get()
+  if cfg.features.split_view then
+    split_view.open()
+  else
+    if M.state.win and api.nvim_win_is_valid(M.state.win) then
+      return
+    end
+    
+    M.state.current_dir = fn.getcwd()
+    M.state.buf, M.state.win = create_float_window()
+    
+    api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
+    api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
+    api.nvim_buf_set_option(M.state.buf, "modifiable", false)
+    api.nvim_win_set_option(M.state.win, "cursorline", true)
+    
+    setup_keymaps(M.state.buf)
+    M.refresh()
   end
-  
-  M.state.current_dir = fn.getcwd()
-  M.state.buf, M.state.win = create_float_window()
-  
-  api.nvim_buf_set_option(M.state.buf, "buftype", "nofile")
-  api.nvim_buf_set_option(M.state.buf, "bufhidden", "wipe")
-  api.nvim_buf_set_option(M.state.buf, "modifiable", false)
-  api.nvim_win_set_option(M.state.win, "cursorline", true)
-  
-  setup_keymaps(M.state.buf)
-  M.refresh()
 end
 
 function M.close()
-  if M.state.win and api.nvim_win_is_valid(M.state.win) then
-    api.nvim_win_close(M.state.win, true)
+  local cfg = config.get()
+  if cfg.features.split_view then
+    split_view.close()
+  else
+    if M.state.win and api.nvim_win_is_valid(M.state.win) then
+      api.nvim_win_close(M.state.win, true)
+    end
+    M.state.buf = nil
+    M.state.win = nil
   end
-  M.state.buf = nil
-  M.state.win = nil
 end
 
 function M.toggle()
-  if M.state.win and api.nvim_win_is_valid(M.state.win) then
-    M.close()
+  local cfg = config.get()
+  if cfg.features.split_view then
+    split_view.toggle()
   else
-    M.open()
+    if M.state.win and api.nvim_win_is_valid(M.state.win) then
+      M.close()
+    else
+      M.open()
+    end
   end
 end
 
