@@ -406,6 +406,9 @@ function M.go_parent()
         cursor = 1,
       })
       
+      -- Update active column index since we inserted a column at the beginning
+      M.state.active_col = 2
+      
       -- Find parent directory in grandparent's file list
       local parent_name = fn.fnamemodify(parent_dir, ":t")
       for i, file in ipairs(files) do
@@ -416,13 +419,19 @@ function M.go_parent()
       end
     end
     
+    -- Get the current column after potential insertion
+    col = M.state.columns[M.state.active_col]
+    
+    -- Store the original directory name before updating
+    local original_dir = col.dir
+    
     -- Update current column to show parent directory
     col.dir = parent_dir
     col.files = get_files(parent_dir)
     col.cursor = 1
     
     -- Find current directory in parent's file list
-    local current_name = fn.fnamemodify(M.state.columns[M.state.active_col + 1].dir, ":t")
+    local current_name = fn.fnamemodify(original_dir, ":t")
     for i, file in ipairs(col.files) do
       if file.name == current_name and file.type == "directory" then
         col.cursor = i
